@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Test / coverage
+coverage/
+playwright-report/
+test-results/
+
+# Agent mirror (generated locally from CLAUDE.md / .claude by tooling — not shipped)
+AGENTS.md
+.agents/
+
+# Env / local
+.env
+.env.local
+.vercel/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
