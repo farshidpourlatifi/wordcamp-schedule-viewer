@@ -13,6 +13,11 @@ owner's CV and portfolio. Implemented with **Tailwind CSS + shadcn/ui**
 Invoke this skill before creating or restyling any UI. Follow the tokens and
 component rules below rather than inventing ad-hoc values.
 
+> **Visual reference:** to (re)generate a visual design-system sheet in Claude
+> Design, use `prompts/claude-design-system.md`. This SKILL.md is the source of
+> truth for code tokens; if the visual sheet and this file ever diverge, update
+> this file and re-export the sheet to match.
+
 ---
 
 ## Design principles
