@@ -41,7 +41,8 @@ with the PRD, the PRD wins. If the PRD conflicts with the live brief
 |---|---|---|
 | UI framework | **React 18** | |
 | Build | **Webpack 5 + Babel** | Hand-wired. No CRA/Vite scaffold. Comment the config. |
-| Styling | **Tailwind CSS + shadcn/ui** | shadcn components **copied in manually** — the shadcn CLI assumes Vite/Next and is NOT used here. Set up Tailwind + the `cn()` util by hand. |
+| Styling | **Tailwind CSS + Base UI** | Primitives on **Base UI** (`@base-ui-components/react`), **not Radix**. Components hand-written into `src/components/ui/` — no shadcn CLI, no scaffold. Set up Tailwind + the `cn()` util by hand. |
+| Theme | **shadcn-style OKLCH tokens, light + dark** | Neutral zinc + blue `--primary`. `.dark` on `<html>`; header theme toggle persists to localStorage, respects `prefers-color-scheme`. Sidebar/chart tokens trimmed. |
 | Data fetching | **TanStack Query** | Caching, loading/error state for WordCamp records. |
 | Routing | **TanStack Router (code-based)** | `createRouter`/`createRoute` in code. No file-based routing plugin (that needs Vite). Routes: upcoming / past. |
 | Unit tests | **Jest + React Testing Library** | jsdom env, Babel transform. |
@@ -49,9 +50,10 @@ with the PRD, the PRD wins. If the PRD conflicts with the live brief
 | Deploy | **Vercel** | Auto-deploy: preview per PR, production on `main`. |
 | CI | **GitHub Actions** | lint + unit + build on PR; semver tags + GitHub Releases for versioning. |
 
-**Design system:** based on Claude Design brand tokens (navy `#0f2438`, blue
-`#1b6ec2`). See the `wordcamp-design-system` skill in `.claude/skills/` — invoke
-it whenever building or restyling UI.
+**Design system:** a shadcn-style OKLCH token theme (neutral zinc + blue
+`--primary`) with light and dark modes. See the `wordcamp-design-system` skill in
+`.claude/skills/` — invoke it whenever building or restyling UI. It holds the
+full token set and is the source of truth for colors.
 
 ---
 
@@ -80,7 +82,7 @@ src/
                 #   upcoming/past, group-by-month, formatters. Most coverage lives here.
   hooks/        # useWordCamps etc. — injectable fetch + clock.
   components/
-    ui/         # shadcn primitives copied in (button, tabs, card, ...).
+    ui/         # hand-written primitives (button, card, skeleton; base-ui tabs).
     ...         # App, CalendarView, WordCampCard, etc.
   routes/       # TanStack Router route definitions (code-based).
   test/         # shared fixtures (NOT under a __tests__ folder — see gotcha).
@@ -94,8 +96,11 @@ per state (loading / success / tab-switch / error) with mocked fetch + fixed clo
 
 ## Gotchas (learned — save yourself the debugging)
 
-- **shadcn CLI won't run on Webpack.** Copy component source in by hand; set up
-  `tailwind.config.js`, `postcss.config.js`, and `lib/cn.js` manually.
+- **No shadcn CLI / no Radix.** Primitives are built on **Base UI** and written
+  by hand; set up `tailwind.config.js`, `postcss.config.js`, and `lib/cn.js`
+  manually. Only Tabs needs a headless primitive; Button/Card/Skeleton are plain.
+- **OKLCH + dark mode.** Tokens live in `:root` + `.dark`; every component must be
+  checked in both themes. The theme toggle writes `.dark` on `<html>` and persists.
 - **TanStack Router file-based routing needs Vite.** Use **code-based** routes.
 - **Jest + fixtures:** do not put a non-test helper file inside a `__tests__/`
   folder — Jest treats it as a suite and fails with "must contain at least one
