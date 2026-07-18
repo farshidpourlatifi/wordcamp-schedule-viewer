@@ -46,6 +46,13 @@ describe("parseWordCampDate", () => {
     expect(parseWordCampDate(NaN)).toBeNull();
   });
 
+  it("rejects a timestamp beyond the range JavaScript can represent", () => {
+    // Seconds this large overflow past the max Date (±8.64e15 ms), which
+    // yields an Invalid Date rather than throwing.
+    expect(parseWordCampDate("99999999999999999")).toBeNull();
+    expect(parseWordCampDate(1e17)).toBeNull();
+  });
+
   it("rejects a negative timestamp", () => {
     // No WordCamp predates the Unix epoch; a negative value is corrupt data.
     expect(parseWordCampDate("-1786233600")).toBeNull();

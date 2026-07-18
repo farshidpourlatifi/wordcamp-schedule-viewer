@@ -36,6 +36,41 @@ function readMeta(record, key) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** The only schemes safe to put in an href. */
+const SAFE_URL_PROTOCOLS = ["http:", "https:"];
+
+/**
+ * Read a meta field as a link target, rejecting anything that is not http(s).
+ *
+ * These values end up in `<a href>`, which is an executable sink: a
+ * `javascript:` URL runs script on click, and `data:text/html` opens
+ * attacker-controlled markup in the site's context. The API is a trusted
+ * source today, but "trusted source" is not a security control — a single
+ * compromised or mis-edited camp record would otherwise reach the sink.
+ *
+ * Anything unparseable or non-http(s) yields "", which the UI renders as a
+ * plain title with no link at all.
+ *
+ * @param {Object} record
+ * @param {string} key
+ * @returns {string} A safe absolute URL, or "".
+ */
+function readSafeUrl(record, key) {
+  const raw = readMeta(record, key);
+  if (raw === "") return "";
+
+  try {
+    // The URL parser normalizes case and strips embedded tabs/newlines, so
+    // "JavaScript:" and "java\nscript:" are both caught by this check.
+    const { protocol } = new URL(raw);
+
+    return SAFE_URL_PROTOCOLS.includes(protocol) ? raw : "";
+  } catch {
+    // Not an absolute URL — nothing safe to link to.
+    return "";
+  }
+}
+
 /**
  * Normalize a single record.
  *
@@ -54,7 +89,8 @@ export function normalizeWordCamp(record) {
     // `title.rendered` is HTML — entities decoded, tags stripped, text only.
     title: toPlainText(record.title?.rendered),
     // Prefer the event's own site; fall back to its page on WordCamp Central.
-    url: readMeta(record, "URL") || readMeta(record, "link"),
+    // Both are scheme-checked — either can carry a hostile value.
+    url: readSafeUrl(record, "URL") || readSafeUrl(record, "link"),
     startDate: parseWordCampDate(record["Start Date (YYYY-mm-dd)"]),
     endDate: parseWordCampDate(record["End Date (YYYY-mm-dd)"]),
     location: readMeta(record, "Location"),

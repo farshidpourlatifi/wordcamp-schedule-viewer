@@ -67,6 +67,64 @@ describe("normalizeWordCamp", () => {
     expect(camp.url).toBe("https://camp.wordcamp.org/2026/");
   });
 
+  describe("url sanitization", () => {
+    // These values become an <a href>, which is an executable sink. The API is
+    // trusted today, but "trusted source" is not a security control.
+    const withUrl = (url) => normalizeWordCamp({ id: 1, URL: url }).url;
+
+    it("rejects javascript: URLs", () => {
+      expect(withUrl("javascript:alert(1)")).toBe("");
+      // The URL parser lowercases the scheme and strips embedded whitespace,
+      // so these obfuscations collapse to the same rejected protocol.
+      expect(withUrl("JavaScript:alert(1)")).toBe("");
+      expect(withUrl("java\nscript:alert(1)")).toBe("");
+      expect(withUrl("\tjavascript:alert(1)")).toBe("");
+    });
+
+    it("rejects data: URLs", () => {
+      expect(withUrl("data:text/html,<script>alert(1)</script>")).toBe("");
+      expect(withUrl("data:text/html;base64,PHNjcmlwdD4=")).toBe("");
+    });
+
+    it("rejects other non-http schemes", () => {
+      expect(withUrl("vbscript:msgbox(1)")).toBe("");
+      expect(withUrl("file:///etc/passwd")).toBe("");
+      expect(withUrl("ftp://example.com/x")).toBe("");
+    });
+
+    it("rejects a value that is not an absolute URL", () => {
+      expect(withUrl("/wordcamps/rome")).toBe("");
+      expect(withUrl("not a url")).toBe("");
+    });
+
+    it("accepts http and https", () => {
+      expect(withUrl("https://rome.wordcamp.org/2026/")).toBe(
+        "https://rome.wordcamp.org/2026/",
+      );
+      expect(withUrl("http://rome.wordcamp.org/2026/")).toBe(
+        "http://rome.wordcamp.org/2026/",
+      );
+    });
+
+    it("falls back to the central link when the event URL is unsafe", () => {
+      const camp = normalizeWordCamp({
+        id: 1,
+        URL: "javascript:alert(1)",
+        link: "https://central.wordcamp.org/wordcamps/camp/",
+      });
+
+      expect(camp.url).toBe("https://central.wordcamp.org/wordcamps/camp/");
+    });
+
+    it("sanitizes the fallback link too", () => {
+      // Both fields come from the same feed; validating only one leaves the
+      // other as an open path to the sink.
+      expect(
+        normalizeWordCamp({ id: 1, URL: "", link: "javascript:alert(1)" }).url,
+      ).toBe("");
+    });
+  });
+
   it("defaults every optional field, treating empty strings as missing", () => {
     // Unset meta arrives as "" from this API, not null — so a plain
     // `?? fallback` would happily keep the empty string.
