@@ -24,7 +24,8 @@ Job Search Accelerator - Senior Full Stack/
     job-description.md      # role + assignment spec
     job-analysis.md         # fit analysis (React + WP REST API mapping)
     assignment-prd.md       # the PRD this repo's docs/PRD.md was copied from
-    build-plan.md           # phased build plan (2026-07-18) - start at Phase 0
+    build-plan.md           # master record of the build plan; the WORKING COPY
+                            #   is this repo's docs/BUILD-PLAN.md (tick boxes there)
     tailored-cv.md          # CV tailored to "Senior React Engineer"
     cover-letter.md         # <- paste this repo's URL + demo link here before submitting
   build/output/rtcamp-tailored-cv.docx   # built CV for submission
