@@ -24,6 +24,7 @@ Job Search Accelerator - Senior Full Stack/
     job-description.md      # role + assignment spec
     job-analysis.md         # fit analysis (React + WP REST API mapping)
     assignment-prd.md       # the PRD this repo's docs/PRD.md was copied from
+    build-plan.md           # phased build plan (2026-07-18) - start at Phase 0
     tailored-cv.md          # CV tailored to "Senior React Engineer"
     cover-letter.md         # <- paste this repo's URL + demo link here before submitting
   build/output/rtcamp-tailored-cv.docx   # built CV for submission
@@ -43,3 +44,10 @@ Job Search Accelerator - Senior Full Stack/
 
 - **GitHub:** https://github.com/farshidpourlatifi/wordcamp-schedule-viewer
 - **Live demo:** _TODO — add Vercel URL_
+
+## Development-process note
+
+This project is planned and built with AI assistance (Claude Code), documented
+openly in this repo (`CLAUDE.md`, `prompts/`, `.claude/skills/`) as a deliberate
+transparency decision (2026-07-18). All code is reviewed, understood, and owned
+by the author.
