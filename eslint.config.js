@@ -62,6 +62,14 @@ module.exports = [
       // console.error/warn are legitimate for surfacing real failures;
       // stray console.log is debugging residue that should not ship.
       "no-console": ["warn", { allow: ["warn", "error"] }],
+
+      // Complexity half of a CRAP-style risk bound: risk is high complexity
+      // AND weak tests, so both ends are capped. Cyclomatic complexity and
+      // nesting are bounded here; test meaningfulness is proven by the Stryker
+      // mutation score (Phase 7). A function that trips these gets split —
+      // the limits do not move.
+      complexity: ["error", 10],
+      "max-depth": ["error", 3],
     },
   },
 
