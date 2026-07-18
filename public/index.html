@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WordCamp Schedule Viewer</title>
+    <meta
+      name="description"
+      content="Browse upcoming and past WordCamps worldwide, loaded live from the WordCamp Central WordPress REST API."
+    />
+
+    <!--
+      Theme bootstrap, inlined and run before first paint.
+
+      This must be a blocking inline script: if the theme were applied after
+      React mounts, a dark-mode user would see a white flash on every load.
+      Reads the stored preference, falling back to the OS setting.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var prefersDark = window.matchMedia(
+            "(prefers-color-scheme: dark)",
+          ).matches;
+          if (stored === "dark" || (!stored && prefersDark)) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {
+          // localStorage can throw in private-mode/blocked-cookie contexts.
+          // A missing theme preference is not worth breaking the page over.
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

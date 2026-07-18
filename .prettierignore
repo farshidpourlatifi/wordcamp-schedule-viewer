@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+
+# Prose is hand-wrapped for readability; Prettier's markdown reflow fights that
+# and would bury real changes under whitespace churn in a reviewed history.
+*.md
