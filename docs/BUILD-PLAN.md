@@ -216,6 +216,12 @@ README (PRD §8):
 - [ ] Setup, architecture + why, from-scratch tooling rationale, testing approach +
       coverage number, API caveats (pagination, date meta), Lighthouse scores,
       limitations / next steps
+- [ ] **Limitations: the upcoming/past boundary freezes between data refreshes.**
+      `useWordCamps` memoizes the partition on the query data, and the clock is
+      deliberately NOT a memo dependency (a ticking clock would re-partition
+      ~1,500 records on every render). So a tab left open overnight keeps
+      yesterday's split until the next refetch. Deliberate and accepted -
+      document it, don't "fix" it.
 - [ ] Test-quality rationale line: no maintained CRAP reporter exists for Jest,
       so the same risk is bounded from both ends - cyclomatic complexity capped
       via ESLint (`complexity`/`max-depth`), test meaningfulness proven via the
