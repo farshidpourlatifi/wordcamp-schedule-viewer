@@ -38,12 +38,36 @@ brief for an AI-use policy and follow it exactly if one exists.
 
 ## Build phases with explicit quality tasks
 
-### Phase 0 - Pre-flight (~30 min)
-- [ ] Re-read the live brief (https://careers.rtcamp.com/assignments/senior-react-engineer/);
+### Phase 0 - Pre-flight (~30 min) - DONE 2026-07-18
+- [x] Re-read the live brief (https://careers.rtcamp.com/assignments/senior-react-engineer/);
       diff against `assignment-prd.md`; note changes incl. any AI-use policy
-- [ ] `curl` real records from `https://central.wordcamp.org/wp-json/wp/v2/wordcamps`;
+      -> **No drift.** Brief still requires: React + WordCamp Central WP REST API,
+      calendar view (map optional), no scaffold/no CRA, Jest or Enzyme >=60% coverage,
+      public GitHub/GitLab repo (no zips - commit history is the point), hosted demo,
+      read-only, UI/UX at own discretion, CSS frameworks allowed.
+      **No AI-use policy stated** -> the 2026-07-18 transparency decision stands unchanged.
+- [x] `curl` real records from `https://central.wordcamp.org/wp-json/wp/v2/wordcamps`;
       verify date meta key/format + `X-WP-TotalPages` pagination; save 2-3 real
       records as test fixtures (they seed every suite below)
+      -> fixtures in `src/test/wordcamps.fixtures.js` (5 real records covering
+      upcoming / past / named entity / numeric entity / dateless+locationless)
+
+#### API findings (verified live 2026-07-18 - these override the PRD's assumptions)
+- **Meta is TOP-LEVEL on each record, not nested under `meta`.** Read
+  `record["Start Date (YYYY-mm-dd)"]`, not `record.meta[...]`.
+- **`Start Date (YYYY-mm-dd)` is a Unix timestamp in SECONDS, as a STRING**
+  (e.g. `"1786233600"`) - the key name lies about the format. Same for `End Date`.
+- Absent meta returns **`""`**, not `null`/`undefined` - normalizer must treat
+  empty string as missing.
+- Pagination confirmed: `X-WP-TotalPages` = **15** at `per_page=100`
+  (`X-WP-Total` = 1480 records). Both headers are CORS-exposed, so the browser
+  can read them.
+- Useful fields: `title.rendered`, `link`, `URL` (event site), `Website URL`,
+  `Location` (`"City, Country"`), `Venue Name`, `Event Timezone`, `status`
+  (`wcpt-scheduled` / `wcpt-closed`).
+- `_host_coordinates` / `_host_country_name` are frequently **empty** - the
+  optional map view must tolerate missing geo. Partition on the parsed start
+  date, **not** on `status`.
 
 ### Phase 1 - Toolchain (commit: `chore: initialize hand-configured webpack + babel toolchain`)
 - [ ] Hand-written, commented: webpack.config.js, .babelrc, postcss/tailwind config (no
