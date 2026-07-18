@@ -98,6 +98,14 @@ brief for an AI-use policy and follow it exactly if one exists.
 - **Markdown excluded from Prettier** - the docs are hand-wrapped prose; letting
   Prettier reflow them would bury real changes in whitespace churn.
 
+#### Phase 1 addendum (added 2026-07-18, after Phase 1 shipped)
+- [ ] **Complexity lint gate** - follow-up `chore(lint)` commit: add
+      `complexity: ["error", 10]` and `max-depth: ["error", 3]` to the src rules
+      block in eslint.config.js (with a short comment: this is the complexity
+      half of a CRAP-style risk bound; the coverage/mutation half lives in
+      Phase 7). Run `npm run lint` - existing hello-world code should already
+      pass; if anything trips, simplify the code rather than raising the limit.
+
 ### Phase 2 - Data layer (test-FIRST)
 Unit suites to write (fixtures from Phase 0):
 - [ ] `decodeEntities.test` - entities (`&#8211;`, `&amp;`) decode to plain TEXT;
@@ -151,9 +159,21 @@ README (PRD §8):
 - [ ] Setup, architecture + why, from-scratch tooling rationale, testing approach +
       coverage number, API caveats (pagination, date meta), Lighthouse scores,
       limitations / next steps
+- [ ] Test-quality rationale line: no maintained CRAP reporter exists for Jest,
+      so the same risk is bounded from both ends - cyclomatic complexity capped
+      via ESLint (`complexity`/`max-depth`), test meaningfulness proven via the
+      Stryker mutation score (Phase 7). If Phase 7 is skipped, say "planned"
+      rather than claiming it.
 
 ### Phase 7 - Stretch (ONLY after Phase 6 gate is green)
 - [ ] GitHub Actions CI: lint + test + build on push/PR
+- [ ] **Mutation testing** (before Playwright - it hardens the tests that already
+      exist): StrykerJS (`@stryker-mutator/core` + `@stryker-mutator/jest-runner`),
+      **mutate `src/utils` + `src/api` ONLY** (pure layers - fast, honest mutants;
+      UI mutants are slow noise). Separate `npm run test:mutation` script; target
+      kill score >=85% in scope; kill survivors by strengthening assertions, not
+      by excluding files. NOT in the blocking CI path (non-blocking/manual
+      workflow if CI exists). Record the score in the README next to coverage.
 - [ ] Playwright E2E: load happy-path, tab switch, error state (3 scenarios, no more)
 - [ ] TanStack Router routes (/upcoming, /past), map view, search/filter,
       sessionStorage cache - pick by remaining energy, in that order
