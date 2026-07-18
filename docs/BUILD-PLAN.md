@@ -182,20 +182,49 @@ Unit suites to write (fixtures from Phase 0):
 **Coverage after Phase 3: 100% statements / 100% functions / 100% lines /
 98.9% branches** (91 tests, 11 suites).
 
-### Phase 4 - UI (invoke the wordcamp-design-system skill; commit per component)
-- [ ] Tabs (upcoming/past) - real `role="tab"`/`tablist`, keyboard operable
-- [ ] CalendarView (month-grouped; REQUIRED, primary view) + empty state
-- [ ] WordCampCard - external links get `rel="noopener noreferrer"`; empty location hidden
-- [ ] Explicit loading (`role="status"`) / error (`role="alert"`) / empty states
-- [ ] Semantic landmarks + heading hierarchy (`<main>`, one `<h1>`, ordered `<h2>`s)
-- [ ] Component tests: WordCampCard (link vs plain title, entity-decoded title renders
-      as text not markup), CalendarView (month headings, empty state)
+### Phase 4 - UI - DONE 2026-07-19 (commits `39ab085`, `73d75fe`, `5982aec`, `9921816`)
+- [x] Tabs (upcoming/past) - real `role="tab"`/`tablist`, keyboard operable
+      -> Base UI. **Manual activation kept** (its default): with automatic
+      activation, arrowing across tabs would render the Past panel - 12 month
+      sections of cards - just to pass over it.
+- [x] CalendarView (month-grouped; REQUIRED, primary view) + empty state
+      -> progressive reveal, 12 months per batch, per the Phase 2 decision
+- [x] WordCampCard - external links get `rel="noopener noreferrer"`; empty location hidden
+- [x] Explicit loading (`role="status"`) / error (`role="alert"`) / empty states
+      -> skeleton cards (not a spinner); error shows plain-language text AND
+      the underlying reason, plus a retry
+- [x] Semantic landmarks + heading hierarchy (`<main>`, one `<h1>`, ordered `<h2>`s)
+- [x] Component tests: WordCampCard, CalendarView, Tabs, ThemeToggle, states, primitives
 
-### Phase 5 - Integration + coverage gate
-- [ ] RTL app-level tests: initial loading state; upcoming renders by default; tab
+#### :warning: Two browser-only bugs found in Phase 4 - jsdom could not see either
+Both passed their unit tests while being visibly broken in a real browser.
+Lesson for Phases 6-7: **UI work needs a browser check, not just green tests.**
+1. **Both tab panels visible at once.** Base UI keeps a deactivated panel
+   mounted while it "animates out" (`data-ending-style`), waiting on a CSS
+   transition this app never runs. jsdom applies no CSS and unmounts the panel,
+   so tests were green. Fixed by hiding the exiting panel explicitly.
+2. **Active tab never highlighted.** The pill was styled against
+   `data-selected`; Base UI actually sets **`data-active`**. Styling keyed to an
+   attribute that never appears is invisible to jsdom, which applies no CSS.
+Both are now pinned by class-presence assertions - weaker than a visual check,
+but jsdom cannot express the real one. A Playwright test (Phase 7) is the
+proper guard.
+
+### Phase 5 - Integration + coverage gate - DONE 2026-07-19 (commit `9921816`)
+- [x] RTL app-level tests: initial loading state; upcoming renders by default; tab
       switch shows past; API failure shows error state (mocked fetch + fixed clock)
-- [ ] **Gate:** `npm run test:coverage` >=60% on ALL four metrics. If short, add
-      util/component tests - do not chase branches in UI glue
+      -> plus keyboard tab switching, retry recovery, landmark/heading structure,
+      and "a tab switch does not refetch". Shared helper in
+      `src/test/renderWithQuery.jsx` (fresh QueryClient per render).
+- [x] **Gate:** `npm run test:coverage` >=60% on ALL four metrics
+      -> **100% statements / 99.2% branches / 100% functions / 100% lines**
+      (142 tests, 17 suites). Far above the 60% floor.
+
+#### Live browser verification (Phase 4/5)
+Driven against the real API in both themes: 37 upcoming across 9 month sections,
+1,443 past across 219, reveal control appearing only where needed and correctly
+counting down (207 -> 195 more months), theme toggle persisting to localStorage,
+exactly one visible tab panel.
 
 ### Phase 6 - Hardening, SEO, deploy, Lighthouse, README
 Security pass:
