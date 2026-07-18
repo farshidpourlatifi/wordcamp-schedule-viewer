@@ -148,13 +148,24 @@ Unit suites to write (fixtures from Phase 0):
   normalized, 37 upcoming / 1,443 past, 219 past month sections, 7 dateless in
   the trailing TBD section, zero empty titles or URLs, zero tags or entities
   leaking through. Fetch of all 15 pages takes ~3.7s.
-- **:warning: Phase 4/6 - Past is ~1,443 cards across 219 month sections.**
-  Rendering that in one list will hurt the Lighthouse performance target and is
-  unusable to scroll. Decide in Phase 4: cap Past to a recent window, paginate
-  it, or add a "load more". This is a UI decision, not a data one - the data
-  layer returns the full set.
-- ~3.7s to load everything also argues for the Phase 4 loading skeleton being
-  real, not decorative.
+- **Phase 4 - Past is ~1,443 cards across 219 month sections.** Rendering that
+  in one list will hurt the Lighthouse performance target and is unusable to
+  scroll. The data layer returns the full set; the UI decides what to show.
+
+#### Phase 2 review outcomes - RESOLVED 2026-07-19
+- [x] **URL sanitization** (`98faf5d`) - the normalizer passed `URL`/`link`
+      through unsanitized and Phase 4 renders them as `<a href>`, an executable
+      sink. Now scheme-checked to http(s); anything else becomes `""` and
+      renders as an unlinked title. Zero false positives across all 1,480 live
+      records (feed is https/http only).
+- [x] **parseDate branch** (`98faf5d`) - over-range seconds now covered;
+      `src/utils` is at 100% branch coverage.
+- **Past list - DECIDED: progressive reveal.** Render the most recent ~12 months
+  of Past; a "Show earlier" button appends older month sections. **No
+  virtualization dependency** - keeps the bundle and the reasoning small.
+- **Loading - DECIDED: skeleton-first**, treated as load-bearing (a full load is
+  ~3.7s). Page-1-first streaming is OPTIONAL and only worth it if it does not
+  complicate `useWordCamps`; default to not doing it.
 
 ### Phase 3 - State + hook
 - [ ] TanStack Query wired; `useWordCamps` hook
