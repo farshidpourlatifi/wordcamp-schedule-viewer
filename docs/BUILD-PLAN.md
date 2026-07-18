@@ -167,10 +167,20 @@ Unit suites to write (fixtures from Phase 0):
   ~3.7s). Page-1-first streaming is OPTIONAL and only worth it if it does not
   complicate `useWordCamps`; default to not doing it.
 
-### Phase 3 - State + hook
-- [ ] TanStack Query wired; `useWordCamps` hook
-- [ ] `useWordCamps.test` - loading -> success, loading -> error, with injectable
+### Phase 3 - State + hook - DONE 2026-07-19 (commit `63b3c2d`)
+- [x] TanStack Query wired; `useWordCamps` hook
+      -> hook owns fetch -> normalize -> partition, so components never see an
+      API field name. `createQueryClient()` is a FACTORY (a module singleton is
+      a global cache that leaks between tests) and is mounted at the
+      composition root in `index.js`, letting tests supply their own client.
+- [x] `useWordCamps.test` - loading -> success, loading -> error, with injectable
       fetch + fixed clock (deterministic)
+      -> plus: abort-signal forwarding, one-fetch-per-mount, stable list
+      identity across re-renders, and a bare `useWordCamps()` call so the
+      injectable DEFAULTS are exercised rather than shipped untested.
+
+**Coverage after Phase 3: 100% statements / 100% functions / 100% lines /
+98.9% branches** (91 tests, 11 suites).
 
 ### Phase 4 - UI (invoke the wordcamp-design-system skill; commit per component)
 - [ ] Tabs (upcoming/past) - real `role="tab"`/`tablist`, keyboard operable
