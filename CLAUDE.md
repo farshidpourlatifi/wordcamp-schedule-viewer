@@ -41,7 +41,7 @@ with the PRD, the PRD wins. If the PRD conflicts with the live brief
 |---|---|---|
 | UI framework | **React 18** | |
 | Build | **Webpack 5 + Babel** | Hand-wired. No CRA/Vite scaffold. Comment the config. |
-| Styling | **Tailwind CSS + Base UI** | Primitives on **Base UI** (`@base-ui-components/react`), **not Radix**. Components hand-written into `src/components/ui/` — no shadcn CLI, no scaffold. Set up Tailwind + the `cn()` util by hand. |
+| Styling | **Tailwind CSS + Base UI** | Primitives on **Base UI** (`@base-ui/react`), **not Radix**. Components hand-written into `src/components/ui/` — no shadcn CLI, no scaffold. Set up Tailwind + the `cn()` util by hand. |
 | Theme | **shadcn-style OKLCH tokens, light + dark** | Neutral zinc + blue `--primary`. `.dark` on `<html>`; header theme toggle persists to localStorage, respects `prefers-color-scheme`. Sidebar/chart tokens trimmed. |
 | Data fetching | **TanStack Query** | Caching, loading/error state for WordCamp records. |
 | Routing | **TanStack Router (code-based)** | `createRouter`/`createRoute` in code. No file-based routing plugin (that needs Vite). Routes: upcoming / past. |

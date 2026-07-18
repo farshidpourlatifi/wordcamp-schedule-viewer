@@ -69,15 +69,34 @@ brief for an AI-use policy and follow it exactly if one exists.
   optional map view must tolerate missing geo. Partition on the parsed start
   date, **not** on `status`.
 
-### Phase 1 - Toolchain (commit: `chore: initialize hand-configured webpack + babel toolchain`)
-- [ ] Hand-written, commented: webpack.config.js, .babelrc, postcss/tailwind config (no
+### Phase 1 - Toolchain - DONE 2026-07-18 (commit `f4e3f8c`)
+- [x] Hand-written, commented: webpack.config.js, babel.config.js, postcss/tailwind config (no
       init generators), jest.config.js with `coverageThreshold: {global: {branches: 60,
       functions: 60, lines: 60, statements: 60}}` and `testMatch` limited to `*.test.js(x)`
       (avoids the fixtures-in-__tests__ trap)
-- [ ] ESLint (react, react-hooks, **jsx-a11y**) + Prettier - jsx-a11y feeds the
+- [x] ESLint (react, react-hooks, **jsx-a11y**) + Prettier - jsx-a11y feeds the
       Lighthouse a11y score later
-- [ ] npm scripts: `start`, `build`, `test`, `test:coverage`, `lint`
-- [ ] **Gate:** hello-world serves via `npm start`; one sample test passes; lint runs clean
+- [x] npm scripts: `start`, `build`, `test`, `test:coverage`, `lint`
+- [x] **Gate:** hello-world serves via `npm start`; one sample test passes; lint runs clean
+      -> dev server 200s (incl. deep-link history fallback), prod build compiles,
+      4 tests pass, lint clean; verified in-browser that OKLCH tokens resolve and
+      dark mode initializes from `prefers-color-scheme`
+
+#### Phase 1 deviations from the plan (deliberate)
+- **Base UI package renamed.** `@base-ui-components/react` stalled at `1.0.0-rc.0`;
+  the library shipped 1.0 as **`@base-ui/react`** (now 1.6.x). Same library, new
+  scope - installed the renamed package. CLAUDE.md updated to match.
+- **`babel.config.js`, not `.babelrc`** (PRD §4 said `.babelrc`). A root config
+  applies project-wide; `.babelrc` is file-relative and does not reliably cover
+  everything Jest pulls in.
+- **React 18 kept** (per CLAUDE.md) even though 19 is current - Base UI 1.6
+  supports `^17 || ^18 || ^19`, so there is no forcing reason to swap the
+  decided stack.
+- **Tailwind v3, not v4** - the design-system skill specifies mapping tokens in
+  `tailwind.config.js`, which is the v3 model; v4 is CSS-first and would move
+  the token contract.
+- **Markdown excluded from Prettier** - the docs are hand-wrapped prose; letting
+  Prettier reflow them would bury real changes in whitespace churn.
 
 ### Phase 2 - Data layer (test-FIRST)
 Unit suites to write (fixtures from Phase 0):

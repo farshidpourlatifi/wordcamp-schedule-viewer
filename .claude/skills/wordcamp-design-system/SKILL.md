@@ -131,7 +131,7 @@ Never put body text on the `primary` fill except `primary-foreground`.
 ## Components
 
 Build these as the app's vocabulary. Interactive primitives are built on **Base
-UI** (`@base-ui-components/react`) and styled with Tailwind + the semantic tokens
+UI** (`@base-ui/react`) and styled with Tailwind + the semantic tokens
 above; write the component source by hand into `src/components/ui/` (no shadcn
 CLI, no Radix). In practice only **Tabs** needs a headless primitive — Button,
 Card, and Skeleton are plain token-styled elements.
