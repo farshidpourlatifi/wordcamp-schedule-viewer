@@ -98,27 +98,63 @@ brief for an AI-use policy and follow it exactly if one exists.
 - **Markdown excluded from Prettier** - the docs are hand-wrapped prose; letting
   Prettier reflow them would bury real changes in whitespace churn.
 
-#### Phase 1 addendum (added 2026-07-18, after Phase 1 shipped)
-- [ ] **Complexity lint gate** - follow-up `chore(lint)` commit: add
+#### Phase 1 addendum - DONE 2026-07-18 (commit `f469f24`)
+- [x] **Complexity lint gate** - follow-up `chore(lint)` commit: add
       `complexity: ["error", 10]` and `max-depth: ["error", 3]` to the src rules
       block in eslint.config.js (with a short comment: this is the complexity
       half of a CRAP-style risk bound; the coverage/mutation half lives in
       Phase 7). Run `npm run lint` - existing hello-world code should already
       pass; if anything trips, simplify the code rather than raising the limit.
+      -> dropped into the existing flat-config src block unchanged; no code
+      tripped either rule, then or through all of Phase 2.
 
-### Phase 2 - Data layer (test-FIRST)
+### Phase 2 - Data layer (test-FIRST) - DONE 2026-07-18
 Unit suites to write (fixtures from Phase 0):
-- [ ] `decodeEntities.test` - entities (`&#8211;`, `&amp;`) decode to plain TEXT;
+- [x] `decodeEntities.test` - entities (`&#8211;`, `&amp;`) decode to plain TEXT;
       **assert output contains no HTML** (this is the XSS guard: decode must be
       text-only, never innerHTML/dangerouslySetInnerHTML on API data)
-- [ ] `parseDate.test` - Unix-seconds, ISO string, missing/garbage -> null ("Date TBD" path)
-- [ ] `normalize.test` - full record -> view model; every meta field optional/defaulted
-- [ ] `partition.test` - upcoming vs past split at injectable `now`; sort order;
+      -> `8133146`. Pure string transform, no DOM: the usual
+      `textarea.innerHTML` / `DOMParser` decode tricks route untrusted API text
+      through an HTML parser, the exact sink to avoid.
+- [x] `parseDate.test` - Unix-seconds, ISO string, missing/garbage -> null ("Date TBD" path)
+      -> `c234f0c`. Returns null, never an Invalid Date (truthy AND
+      `instanceof Date`, so it survives null checks and fails later).
+- [x] `normalize.test` - full record -> view model; every meta field optional/defaulted
+      -> `ec31535`
+- [x] `partition.test` - upcoming vs past split at injectable `now`; sort order;
       dateless camps land in past/TBD deterministically
-- [ ] `groupByMonth.test` + formatter tests
-- [ ] `api.test` - builds correct URL (`?per_page=100&page=N`), reads `X-WP-TotalPages`,
+      -> `82b9fde`
+- [x] `groupByMonth.test` + formatter tests -> `1415f86`
+- [x] `api.test` - builds correct URL (`?per_page=100&page=N`), reads `X-WP-TotalPages`,
       loops all pages, throws on non-ok - all with mocked fetch (no network in tests, ever)
-- [ ] Implementation commits paired with each suite
+      -> `2c2032e`. A `jest.setup.js` tripwire fails any test that reaches for
+      global fetch, so "no network in tests" is enforced, not just intended.
+- [x] Implementation commits paired with each suite (six `feat` commits, each
+      shipping green with its own suite)
+
+**Coverage after Phase 2: 98.7% statements / 95.1% branches / 97.4% functions**
+(73 tests, 9 suites) - already well clear of the 60% floor before any UI exists.
+
+#### Phase 2 findings that affect later phases
+- **Day-granularity partitioning was not theoretical.** Run against live data,
+  the soonest upcoming camp was *today* - a naive `startDate >= now` would have
+  filed a camp happening right now under Past. Split compares UTC day
+  boundaries.
+- **`_fields` payload trimming is unusable.** The endpoint silently drops any
+  field whose name contains a space or parentheses, and `Start Date
+  (YYYY-mm-dd)` is exactly that - a field list returns records with NO dates.
+  Full records are the only option; noted for the Phase 6 perf discussion.
+- **Live pipeline check (whole data layer, 1,480 real records):** 1,480/1,480
+  normalized, 37 upcoming / 1,443 past, 219 past month sections, 7 dateless in
+  the trailing TBD section, zero empty titles or URLs, zero tags or entities
+  leaking through. Fetch of all 15 pages takes ~3.7s.
+- **:warning: Phase 4/6 - Past is ~1,443 cards across 219 month sections.**
+  Rendering that in one list will hurt the Lighthouse performance target and is
+  unusable to scroll. Decide in Phase 4: cap Past to a recent window, paginate
+  it, or add a "load more". This is a UI decision, not a data one - the data
+  layer returns the full set.
+- ~3.7s to load everything also argues for the Phase 4 loading skeleton being
+  real, not decorative.
 
 ### Phase 3 - State + hook
 - [ ] TanStack Query wired; `useWordCamps` hook
