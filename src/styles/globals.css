@@ -42,7 +42,13 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.21 0.006 285.885);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.443 0.11 240.79);
+    /* Lightened from 0.443 to clear WCAG AA. At 0.443 this blue scored 2.64:1
+       against the page and 2.35:1 against a card — the accent carries the
+       month headings and every card's date line, so it is small bold TEXT, not
+       decoration. At 0.65 it scores 6.24:1 and 5.56:1.
+       Consequence: in dark mode `primary` is a text accent only. It is too
+       light to use as a fill behind `primary-foreground` (2.99:1). */
+    --primary: oklch(0.65 0.11 240.79);
     --primary-foreground: oklch(0.977 0.013 236.62);
     --secondary: oklch(0.274 0.006 286.033);
     --secondary-foreground: oklch(0.985 0 0);

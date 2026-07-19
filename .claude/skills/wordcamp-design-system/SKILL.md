@@ -85,7 +85,7 @@ this app has no sidebar and no charts (KISS). Keep only what the app uses.
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.21 0.006 285.885);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.443 0.11 240.79);
+  --primary: oklch(0.65 0.11 240.79);        /* AA-tuned; see note below */
   --primary-foreground: oklch(0.977 0.013 236.62);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
@@ -111,6 +111,20 @@ stored value or `prefers-color-scheme`. Both modes must pass AA.
 
 Contrast: `foreground`/`muted-foreground` on `background` pass AA in both modes.
 Never put body text on the `primary` fill except `primary-foreground`.
+
+**Dark-mode `--primary` is a TEXT accent, not a fill** (corrected 2026-07-19).
+The accent carries month headings and every card's date line, so it is small
+bold *text* and must clear 4.5:1. The original `oklch(0.443 0.11 240.79)`
+scored **2.64:1** on the page and **2.35:1** on a card — a real AA failure,
+caught by Lighthouse, not by eye. It is now `oklch(0.65 0.11 240.79)`:
+**6.24:1** and **5.56:1**.
+
+The trade-off is deliberate: at this lightness, `primary-foreground` on a
+`primary` fill is only 2.99:1, so **do not use dark-mode `primary` as a
+background behind text**. If a filled accent is ever needed, add a separate
+darker `--primary-fill` token rather than dimming this one back down.
+
+Light mode is unchanged: `oklch(0.5 0.134 242.749)` on white is 5.85:1.
 
 ### Typography
 

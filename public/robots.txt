@@ -1,0 +1,3 @@
+# WordCamp Schedule Viewer — a public, view-only listing. Nothing to hide.
+User-agent: *
+Allow: /

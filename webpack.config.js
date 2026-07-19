@@ -14,6 +14,7 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 module.exports = (_env, argv) => {
   const isProduction = argv.mode === "production";
@@ -86,6 +87,17 @@ module.exports = (_env, argv) => {
         // Our own HTML shell; webpack injects the hashed bundle tags into it.
         template: "./public/index.html",
         favicon: "./public/favicon.svg",
+      }),
+      // Static files that ship as-is. index.html is excluded because
+      // HtmlWebpackPlugin renders it (copying it raw would overwrite the
+      // version with the bundle tags injected).
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: "public",
+            globOptions: { ignore: ["**/index.html"] },
+          },
+        ],
       }),
       // Only instantiated in production, where its loader is actually used.
       isProduction &&
