@@ -1,6 +1,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+// The map is lazily imported and drives real Leaflet, which jsdom cannot lay
+// out. A light stand-in lets the App-level tests prove the map is wired into
+// the view toggle and tabs; the real map is covered by the Playwright E2E.
+jest.mock("@/components/MapView", () => ({
+  MapView: ({ camps }) => (
+    <div data-testid="map-view">{camps.length} on the map</div>
+  ),
+}));
+
 import { App } from "@/App";
 import {
   renderWithQuery,
@@ -308,6 +317,38 @@ describe("App", () => {
       await user.click(await screen.findByRole("button", { name: "List" }));
 
       expect(localStorage.getItem("schedule-view")).toBe("list");
+    });
+
+    it("shows the map, under the same tabs as the list", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.click(await screen.findByRole("button", { name: "Map" }));
+
+      // The map is lazily loaded, so it arrives asynchronously.
+      expect(await screen.findByTestId("map-view")).toBeInTheDocument();
+      // One upcoming camp on the default tab.
+      expect(screen.getByTestId("map-view")).toHaveTextContent("1 on the map");
+      // And it filters through the same tabs.
+      expect(screen.getByRole("tab", { name: /Upcoming/ })).toBeInTheDocument();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    });
+
+    it("re-filters the map when the tab changes", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.click(await screen.findByRole("button", { name: "Map" }));
+      await screen.findByTestId("map-view");
+
+      await user.click(screen.getByRole("tab", { name: /Past/ }));
+
+      // The past tab feeds its one camp to the same map.
+      expect(await screen.findByTestId("map-view")).toHaveTextContent(
+        "1 on the map",
+      );
     });
   });
 });

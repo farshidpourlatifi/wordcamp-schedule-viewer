@@ -10,13 +10,17 @@ const ENDPOINT_GLOB = "**/wp-json/wp/v2/wordcamps*";
  * Build one raw API record in the shape the client expects: meta fields at the
  * TOP level (not under `meta`), the start date as Unix SECONDS in a string.
  */
-function record({ id, title, startSeconds, location = "", url = "" }) {
+function record({ id, title, startSeconds, location = "", url = "", coords }) {
   return {
     id,
     title: { rendered: title },
     "Start Date (YYYY-mm-dd)": startSeconds,
     Location: location,
     URL: url,
+    // The API sends coordinates under _venue_coordinates for physical events.
+    _venue_coordinates: coords
+      ? { latitude: coords[0], longitude: coords[1] }
+      : "",
   };
 }
 
@@ -32,12 +36,14 @@ const RECORDS = [
     startSeconds: FUTURE_SECONDS,
     location: "Rome, Italy",
     url: "https://rome.wordcamp.org/2099/",
+    coords: [41.9028, 12.4964],
   }),
   record({
     id: 2,
     title: "WordCamp History Osaka",
     startSeconds: PAST_SECONDS,
     location: "Osaka, Japan",
+    coords: [34.6937, 135.5023],
   }),
 ];
 

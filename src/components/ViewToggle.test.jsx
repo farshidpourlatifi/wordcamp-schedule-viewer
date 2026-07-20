@@ -5,6 +5,7 @@ import {
   ViewToggle,
   VIEW_CALENDAR,
   VIEW_LIST,
+  VIEW_MAP,
   readStoredView,
   persistView,
 } from "@/components/ViewToggle";
@@ -38,14 +39,22 @@ describe("ViewToggle", () => {
     );
   });
 
+  it("offers all three views", () => {
+    render(<ViewToggle view={VIEW_CALENDAR} onViewChange={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "Calendar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "List" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Map" })).toBeInTheDocument();
+  });
+
   it("reports the view the user picked", async () => {
     const user = userEvent.setup();
     const onViewChange = jest.fn();
     render(<ViewToggle view={VIEW_CALENDAR} onViewChange={onViewChange} />);
 
-    await user.click(screen.getByRole("button", { name: "List" }));
+    await user.click(screen.getByRole("button", { name: "Map" }));
 
-    expect(onViewChange).toHaveBeenCalledWith(VIEW_LIST);
+    expect(onViewChange).toHaveBeenCalledWith(VIEW_MAP);
   });
 
   it("is reachable as a labelled group", () => {
@@ -64,6 +73,12 @@ describe("readStoredView", () => {
     localStorage.setItem("schedule-view", VIEW_LIST);
 
     expect(readStoredView()).toBe(VIEW_LIST);
+  });
+
+  it("returns a stored map preference", () => {
+    localStorage.setItem("schedule-view", VIEW_MAP);
+
+    expect(readStoredView()).toBe(VIEW_MAP);
   });
 
   it("falls back when the stored value is unrecognized", () => {

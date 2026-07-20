@@ -114,7 +114,13 @@ module.exports = (_env, argv) => {
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: "vendor",
-            chunks: "all",
+            // "initial", not "all": only the dependencies of the initial entry
+            // (React, TanStack, Base UI…) belong in the up-front vendor chunk.
+            // "all" would hoist async-only deps here too — Leaflet, ~150 KiB —
+            // defeating the point of lazily importing the map. With "initial"
+            // those stay inside the map's own async chunk, downloaded only when
+            // someone opens it.
+            chunks: "initial",
           },
         },
       },

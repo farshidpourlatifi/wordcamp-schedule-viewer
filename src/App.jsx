@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { AppFooter } from "@/components/AppFooter";
@@ -8,12 +8,21 @@ import { LoadingState, ErrorState } from "@/components/states";
 import {
   ViewToggle,
   VIEW_CALENDAR,
-  VIEW_LIST,
+  VIEW_MAP,
   readStoredView,
   persistView,
 } from "@/components/ViewToggle";
 import { Tabs, TabsList, Tab, TabPanel } from "@/components/ui/tabs";
 import { useWordCamps } from "@/hooks/useWordCamps";
+
+// The map pulls in Leaflet and its cluster plugin — ~150 KiB that the calendar
+// and list never touch. Loading it only when the map is opened keeps the two
+// primary views off that weight; webpack splits it into its own chunk.
+const MapView = lazy(() =>
+  import("@/components/MapView").then((module) => ({
+    default: module.MapView,
+  })),
+);
 
 /**
  * Application shell: header, the schedule in the chosen view, footer.
@@ -21,11 +30,11 @@ import { useWordCamps } from "@/hooks/useWordCamps";
  * All data concerns live in `useWordCamps`; this component only decides which
  * of the four states to render, and which view renders the camps.
  *
- * The upcoming/past tabs belong to the list, not to the calendar. A calendar
- * is continuous time and already marks today, so splitting it in two makes
- * the same month render twice with different subsets — July shows the camps
- * before the 20th under one tab and the ones after it under another. The tabs
- * are a filter, and a filter belongs to the view that needs filtering.
+ * The upcoming/past tabs belong to the list and the map, not to the calendar.
+ * A calendar is continuous time and already marks today, so splitting it in
+ * two makes the same month render twice with different subsets. The tabs are a
+ * filter, and they belong to the views that filter — the list and the map each
+ * read one already-split side at a time.
  */
 
 const TAB_UPCOMING = "upcoming";
@@ -63,7 +72,7 @@ export function App() {
           </>
         )}
 
-        {!isLoading && !isError && view === VIEW_LIST && (
+        {!isLoading && !isError && view !== VIEW_CALENDAR && (
           <Tabs defaultValue={TAB_UPCOMING}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <TabsList>
@@ -75,15 +84,17 @@ export function App() {
             </div>
 
             <TabPanel value={TAB_UPCOMING}>
-              <ListView
+              <TabbedView
+                view={view}
                 camps={upcoming}
-                emptyMessage="No upcoming WordCamps with scheduled dates."
+                emptyMessage="No upcoming WordCamps found."
                 revealLabel="Show later"
               />
             </TabPanel>
 
             <TabPanel value={TAB_PAST}>
-              <ListView
+              <TabbedView
+                view={view}
                 camps={past}
                 emptyMessage="No past WordCamps found."
                 revealLabel="Show earlier"
@@ -94,6 +105,51 @@ export function App() {
       </main>
 
       <AppFooter />
+    </div>
+  );
+}
+
+/**
+ * Render one tab's camps in whichever of the tabbed views is active.
+ *
+ * Both tab panels render this, so the list/map choice lives in one place
+ * rather than being duplicated — and doubled again — across the two panels.
+ *
+ * @param {Object} props
+ * @param {string} props.view The active view (list or map).
+ * @param {Array} props.camps This tab's camps.
+ * @param {string} props.emptyMessage
+ * @param {string} props.revealLabel List only; the map has no reveal control.
+ */
+function TabbedView({ view, camps, emptyMessage, revealLabel }) {
+  if (view === VIEW_MAP) {
+    return (
+      <Suspense fallback={<MapLoading />}>
+        <MapView camps={camps} emptyMessage={emptyMessage} />
+      </Suspense>
+    );
+  }
+
+  return (
+    <ListView
+      camps={camps}
+      emptyMessage={emptyMessage}
+      revealLabel={revealLabel}
+    />
+  );
+}
+
+/**
+ * Placeholder while the lazily-loaded map chunk arrives. Sized to the map so
+ * the swap does not shift the page.
+ */
+function MapLoading() {
+  return (
+    <div
+      role="status"
+      className="flex h-[70vh] min-h-80 items-center justify-center rounded-lg border border-border text-muted-foreground"
+    >
+      <span>Loading map…</span>
     </div>
   );
 }

@@ -48,6 +48,21 @@ test("switches to the list and between its tabs", async ({ page }) => {
   ).toBeHidden();
 });
 
+test("renders the map with a real Leaflet marker", async ({ page }) => {
+  await mockWordCamps(page);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Map" }).click();
+
+  // The map is a lazily-loaded chunk driving real Leaflet — the one view jsdom
+  // cannot render, so this is where E2E earns its keep. The container and its
+  // required OSM attribution prove the map mounted; a marker proves the
+  // upcoming camp's coordinates reached it.
+  await expect(page.locator(".leaflet-container")).toBeVisible();
+  await expect(page.getByText(/OpenStreetMap/)).toBeVisible();
+  await expect(page.locator(".leaflet-marker-icon").first()).toBeVisible();
+});
+
 test("shows the error state when the API fails", async ({ page }) => {
   await failWordCamps(page);
   await page.goto("/");
