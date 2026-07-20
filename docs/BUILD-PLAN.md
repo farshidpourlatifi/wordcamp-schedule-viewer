@@ -40,7 +40,7 @@ nobody read it as one, so hard requirement #2 was effectively unmet. Since then:
 | Area | State |
 |---|---|
 | App | Complete: month-grid calendar + list view, view toggle, tabs filtering the list, all four states, light+dark |
-| Tests | **243 tests, 20 suites** - 100% stmts / 99.5% branches / 100% fns / 100% lines |
+| Tests | **255 tests, 20 suites** - 100% stmts / 99.5% branches / 100% fns / 100% lines. Stryker mutation score 96% (utils+api). 3 Playwright E2E. |
 | Lint | Clean (react, react-hooks, jsx-a11y, complexity 10, max-depth 3) |
 | Build | `npm run build` -> `dist/`, ~177 KiB entrypoint |
 | Lighthouse | LOCAL bundle, both themes: A11y 100 / BP 100 / SEO 100 / **Perf 75-77** |
@@ -352,17 +352,20 @@ README (PRD §8):
       rather than claiming it.
 
 ### Phase 7 - Stretch (ONLY after Phase 6 gate is green)
-- [ ] GitHub Actions CI: lint + test + build on push/PR
-- [ ] **Mutation testing** (before Playwright - it hardens the tests that already
-      exist): StrykerJS (`@stryker-mutator/core` + `@stryker-mutator/jest-runner`),
-      **mutate `src/utils` + `src/api` ONLY** (pure layers - fast, honest mutants;
-      UI mutants are slow noise). Separate `npm run test:mutation` script; target
-      kill score >=85% in scope; kill survivors by strengthening assertions, not
-      by excluding files. NOT in the blocking CI path (non-blocking/manual
-      workflow if CI exists). Record the score in the README next to coverage.
-- [ ] Playwright E2E: load happy-path, tab switch, error state (3 scenarios, no more)
-- [ ] TanStack Router routes (/upcoming, /past), map view, search/filter,
-      sessionStorage cache - pick by remaining energy, in that order
+- [x] GitHub Actions CI: lint + test + build on push/PR (`.github/workflows/ci.yml`,
+      Node 20 + 22 matrix). Cannot self-verify green until pushed.
+- [x] **Mutation testing** - StrykerJS over `src/utils` + `src/api` only,
+      `npm run test:mutation`, break threshold 85. **Score: 96%** (up from an
+      initial 86.83% by strengthening real gaps, not excluding files). Recorded
+      in the README. Survivors that remain are equivalent mutants. Surfaced and
+      removed one piece of dead code (`decodeEntities` "#039" map entry).
+- [x] Playwright E2E: 3 scenarios (calendar load, view+tab switch, error state).
+      API mocked via `page.route`; one Chromium project; `npm run test:e2e`.
+      Kept out of the blocking CI path (needs a browser download).
+- [ ] TanStack Router routes (/upcoming, /past), **map view**, search/filter,
+      sessionStorage cache - pick by remaining energy. Map view is the next one
+      up; note `_host_coordinates` is empty on most records, so it needs
+      geocoding from the `Location` string.
 
 ### Phase 8 - Submit (back in this repo)
 - [ ] Paste repo URL + demo URL into `applications/rtcamp/cover-letter.md`
