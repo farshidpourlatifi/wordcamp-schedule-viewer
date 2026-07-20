@@ -94,6 +94,7 @@ describe("useWordCamps", () => {
       endDate: null,
       location: "",
       venue: "",
+      coordinates: null,
     });
   });
 

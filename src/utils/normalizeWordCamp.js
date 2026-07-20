@@ -21,6 +21,8 @@ import { parseWordCampDate } from "@/utils/parseDate";
  * @property {Date|null} endDate
  * @property {string} location   "City, Country"; "" when absent.
  * @property {string} venue
+ * @property {{lat: number, lng: number}|null} coordinates  Venue location for
+ *   the map; null when the record has no usable coordinates.
  */
 
 /**
@@ -34,6 +36,37 @@ function readMeta(record, key) {
   const value = record[key];
 
   return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Read the venue coordinates, or null when there is nothing plottable.
+ *
+ * The API sends `_venue_coordinates` as `{latitude, longitude}` for physical
+ * events and `""` for virtual or unlocated ones. Values are validated as
+ * finite numbers in range rather than trusted: a NaN or an out-of-range pair
+ * would put a marker at (0, 0) in the Atlantic or throw inside Leaflet.
+ *
+ * `_host_coordinates` is deliberately not a fallback — it is empty on every
+ * record checked against the live feed, so reading it would only add a dead
+ * branch.
+ *
+ * @param {Object} record
+ * @returns {{lat: number, lng: number}|null}
+ */
+function readCoordinates(record) {
+  const raw = record["_venue_coordinates"];
+  if (!raw || typeof raw !== "object") return null;
+
+  const lat = Number(raw.latitude);
+  const lng = Number(raw.longitude);
+
+  const inRange =
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180;
+
+  return inRange ? { lat, lng } : null;
 }
 
 /** The only schemes safe to put in an href. */
@@ -95,6 +128,7 @@ export function normalizeWordCamp(record) {
     endDate: parseWordCampDate(record["End Date (YYYY-mm-dd)"]),
     location: readMeta(record, "Location"),
     venue: readMeta(record, "Venue Name"),
+    coordinates: readCoordinates(record),
   };
 }
 

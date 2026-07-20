@@ -22,6 +22,7 @@ describe("normalizeWordCamp", () => {
       location: "Tegal Regency, Indonesia",
       venue:
         "Tegal Regency Public Library (Perpustakaan Soekarno-Hatta Kabupaten Tegal)",
+      coordinates: null,
     });
   });
 
@@ -146,6 +147,53 @@ describe("normalizeWordCamp", () => {
       endDate: null,
       location: "",
       venue: "",
+      coordinates: null,
+    });
+  });
+
+  describe("coordinates", () => {
+    const withVenue = (coords) =>
+      normalizeWordCamp({ id: 1, _venue_coordinates: coords }).coordinates;
+
+    it("reads a valid venue coordinate pair", () => {
+      // The live shape: { latitude, longitude }, mapped to { lat, lng }.
+      expect(withVenue({ latitude: 27.7081128, longitude: 85.3214557 })).toEqual(
+        { lat: 27.7081128, lng: 85.3214557 },
+      );
+    });
+
+    it("coerces numeric strings", () => {
+      expect(withVenue({ latitude: "51.5", longitude: "-0.12" })).toEqual({
+        lat: 51.5,
+        lng: -0.12,
+      });
+    });
+
+    it("is null when the field is the API's empty-string default", () => {
+      // Virtual and unlocated events send "" here rather than an object.
+      expect(withVenue("")).toBeNull();
+    });
+
+    it("is null when the field is absent entirely", () => {
+      expect(normalizeWordCamp({ id: 1 }).coordinates).toBeNull();
+    });
+
+    it("rejects a pair that is not finite", () => {
+      expect(withVenue({ latitude: "north", longitude: 5 })).toBeNull();
+    });
+
+    it("rejects a pair out of geographic range", () => {
+      // A bad record must not put a marker at an impossible point or throw
+      // inside Leaflet.
+      expect(withVenue({ latitude: 91, longitude: 0 })).toBeNull();
+      expect(withVenue({ latitude: 0, longitude: 181 })).toBeNull();
+    });
+
+    it("accepts the exact range boundaries", () => {
+      expect(withVenue({ latitude: 90, longitude: -180 })).toEqual({
+        lat: 90,
+        lng: -180,
+      });
     });
   });
 
