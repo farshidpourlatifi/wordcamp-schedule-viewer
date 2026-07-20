@@ -52,7 +52,24 @@ const TILE_ATTRIBUTION =
 
 /** A neutral world view: the whole map visible, centred near the equator. */
 const INITIAL_CENTER = [20, 0];
-const INITIAL_ZOOM = 2;
+
+/**
+ * Zoom 2 fits the whole world in a full-width frame, and it is also the floor:
+ * zooming out further only adds grey margins and repeated worlds, so the map
+ * opens at its minimum and can only zoom in from there.
+ */
+const MIN_ZOOM = 2;
+const INITIAL_ZOOM = MIN_ZOOM;
+
+/**
+ * The one world, clamped to the Mercator latitude limit (~85°). With
+ * `maxBoundsViscosity` at 1 the edge is solid, so panning cannot drift off the
+ * map into empty space.
+ */
+const WORLD_BOUNDS = [
+  [-85, -180],
+  [85, 180],
+];
 
 /**
  * @param {Object} props
@@ -79,11 +96,13 @@ export function MapView({ camps, emptyMessage }) {
         <MapContainer
           center={INITIAL_CENTER}
           zoom={INITIAL_ZOOM}
+          minZoom={MIN_ZOOM}
+          maxBounds={WORLD_BOUNDS}
+          maxBoundsViscosity={1}
           // The map is a dedicated full-width view, not a small embed, so plain
           // scroll-to-zoom is the expected gesture — there is little page to
           // trap the scroll against.
           scrollWheelZoom
-          worldCopyJump
           className="h-full w-full"
         >
           <TileLayer
@@ -92,6 +111,8 @@ export function MapView({ camps, emptyMessage }) {
             key={isDark ? "dark" : "light"}
             attribution={TILE_ATTRIBUTION}
             url={isDark ? TILES.dark : TILES.light}
+            // One world only — no horizontal repetition past the bounds.
+            noWrap
           />
 
           <MarkerClusterGroup chunkedLoading>
