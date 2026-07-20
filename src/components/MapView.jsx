@@ -144,10 +144,11 @@ export function MapView({ camps, emptyMessage }) {
 /**
  * The content of a marker's popup.
  *
- * Deliberately plain: a title that links to the event (with the same
- * noopener/noreferrer as every external link in the app), the date, and the
- * location line. The popup is Leaflet-rendered outside the Tailwind base
- * layer, so the link colour is set inline rather than via a token class.
+ * A title that links to the event (with the same noopener/noreferrer as every
+ * external link in the app), then date, location, timezone, and anticipated
+ * attendance — each shown only when present. The popup is Leaflet-rendered
+ * outside the Tailwind base layer, so the link colour is set inline rather than
+ * via a token class.
  *
  * @param {Object} props
  * @param {Object} props.camp Normalized camp with coordinates.
@@ -171,6 +172,16 @@ function CampPopup({ camp }) {
       </p>
       <p className="mt-1">{formatCampDate(camp.startDate)}</p>
       {camp.location && <p className="text-muted-foreground">{camp.location}</p>}
+      {camp.timezone && (
+        <p className="text-muted-foreground">{camp.timezone}</p>
+      )}
+      {camp.attendees && (
+        // "anticipated", never bare: the API's figure is a pre-event estimate,
+        // and labelling it as attendance-that-happened would misrepresent it.
+        <p className="text-muted-foreground">
+          ~{camp.attendees.toLocaleString("en-US")} anticipated
+        </p>
+      )}
     </div>
   );
 }

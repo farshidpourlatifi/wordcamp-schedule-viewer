@@ -38,6 +38,8 @@ const camp = (overrides = {}) => ({
   location: "Rome, Italy",
   venue: "",
   coordinates: { lat: 41.9, lng: 12.5 },
+  timezone: "",
+  attendees: null,
   ...overrides,
 });
 
@@ -50,6 +52,21 @@ describe("MapView", () => {
 
     expect(screen.getByText("Nothing here.")).toBeInTheDocument();
     expect(screen.queryByTestId("map")).not.toBeInTheDocument();
+  });
+
+  it("renders in dark mode without falling over", () => {
+    // Exercises the dark-tile branch: useDarkTheme reads the html class. The
+    // class is set before render and removed only after unmount, so the theme
+    // observer never fires a state update outside act().
+    document.documentElement.classList.add("dark");
+    const { unmount } = render(
+      <MapView camps={[camp()]} emptyMessage="Nothing here." />,
+    );
+
+    expect(screen.getByTestId("map")).toBeInTheDocument();
+
+    unmount();
+    document.documentElement.classList.remove("dark");
   });
 
   it("places a marker at each located camp's coordinates", () => {
@@ -98,6 +115,25 @@ describe("MapView", () => {
     const popup = screen.getByTestId("popup");
     expect(within(popup).getByText("Sat, 14 Mar 2026")).toBeInTheDocument();
     expect(within(popup).getByText("Rome, Italy")).toBeInTheDocument();
+  });
+
+  it("shows timezone and anticipated attendance when present", () => {
+    renderMap({
+      camps: [camp({ timezone: "Europe/Rome", attendees: 1200 })],
+    });
+
+    const popup = screen.getByTestId("popup");
+    expect(within(popup).getByText("Europe/Rome")).toBeInTheDocument();
+    // Labelled anticipated, and thousands-formatted.
+    expect(within(popup).getByText("~1,200 anticipated")).toBeInTheDocument();
+  });
+
+  it("omits timezone and attendance when absent", () => {
+    // The base factory has neither, so the popup shows only the core lines.
+    renderMap();
+
+    const popup = screen.getByTestId("popup");
+    expect(within(popup).queryByText(/anticipated/)).not.toBeInTheDocument();
   });
 
   it("renders a camp with no safe URL as plain popup text", () => {
