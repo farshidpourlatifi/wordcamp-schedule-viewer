@@ -51,23 +51,27 @@ src/
 ### Two views, and why there are two
 
 **`MonthCalendar` is the calendar view** and the app's default — a real month
-grid, Monday-first, one month at a time, with camps in the day cells they
-occupy.
+grid, Monday-first, one month at a time, over one continuous timeline.
 
 **`ListView` is a companion**, not a requirement. The calendar cannot serve the
-Past tab on its own: there are ~1,445 past camps across ~219 months, so paging
-a month at a time means ~219 clicks to cross the archive. The list scans that
-same history in one scroll. The two split the work by data density — the
-calendar answers "what is on this day", the list answers "what has there
-been" — and a single toggle beside the tabs switches between them, persisted
-to `localStorage`.
+archive on its own: there are ~1,445 past camps across ~219 months, so paging
+a month at a time means ~219 clicks to cross it. The list scans that same
+history in one scroll. The two split the work by data density — the calendar
+answers "what is on this day", the list answers "what has there been" — and a
+toggle switches between them, persisted to `localStorage`.
 
-Three decisions in the calendar came from looking at the live data rather than
+**The upcoming/past tabs belong to the list only.** They are a filter, and a
+calendar is continuous time: with tabs, July 2026 rendered twice, camps before
+the 20th under one tab and after it under the other. The calendar marks today
+instead and shows both sides of it in the same grid.
+
+Decisions in the calendar that came from looking at the live data rather than
 guessing at it:
 
-- **It opens on the first camp's month, not today's.** On the Past tab "today"
-  is out of range by definition, so anchoring to the clock would open an empty
-  grid. Navigation is also clamped to the months that hold camps.
+- **It opens on today's month**, clamped into the range that holds camps —
+  that is where the reader already is, with recent camps one click back and
+  the next ones in view. Navigation is clamped to the same range, so it cannot
+  page into empty decades, and a Today control returns from wherever you get to.
 - **Long-running entries are not drawn across the grid.** 16% of dated records
   span 15+ days — "WordPress Campus Connect" entries are multi-month campus
   programmes, not events you attend on a day, and the longest runs 149 days.

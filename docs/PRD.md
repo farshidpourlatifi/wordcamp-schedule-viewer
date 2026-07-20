@@ -99,9 +99,12 @@ Keep concerns separated so each piece is independently testable:
 src/
   api/          # WP REST fetch client (pagination, error handling). Injectable fetch for tests.
   utils/        # PURE functions: normalize record, parse date, partition upcoming/past,
-                #   group-by-month, format helpers. <- easiest place to earn coverage.
+                #   group-by-month, calendar grid math, format helpers.
+                #   <- easiest place to earn coverage.
   hooks/        # useWordCamps: loading/success/error state; injectable fetch + clock.
-  components/   # App, Tabs (upcoming/past), CalendarView (month-grouped), WordCampCard.
+  components/   # App, MonthCalendar (required primary view), ListView
+                #   (month-grouped companion), Tabs (filter the list only),
+                #   ViewToggle, WordCampCard.
   __tests__/    # co-located or here; shared fixtures modeled on the real payload.
   index.js      # createRoot entry
   styles.css
@@ -126,9 +129,10 @@ jest.config.js     (jsdom env, coverageThreshold.global = 60)
 - **API client:** builds correct URL, reads `X-WP-TotalPages`, pages through
   multi-page results, throws on non-ok — all with a mocked fetch.
 - **Components:** WordCampCard (link vs. plain title, hidden empty location),
-  CalendarView (month headings + empty state).
-- **App integration (RTL):** loading state, renders upcoming by default, tab
-  switch shows past, error state on API failure — with a mocked fetch + fixed clock.
+  ListView (month headings + empty state), MonthCalendar (grid shape, day
+  placement, multi-day spans, clamped navigation) with an injected clock.
+- **App integration (RTL):** loading state, calendar by default, view toggle,
+  tabs filtering the list, error state on API failure — with a mocked fetch.
 
 > **Gotcha:** if you keep a shared `fixtures.js` inside a `__tests__/` folder,
 > Jest will try to run it as a suite and fail with "must contain at least one

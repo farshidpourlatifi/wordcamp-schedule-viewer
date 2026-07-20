@@ -165,10 +165,11 @@ Base UI provides the roles/keyboard behavior; ensure `aria-selected` and a visib
 `ring` focus outline.
 
 ### ViewToggle (Calendar / List)
-Pill-style segmented control matching the Tabs treatment, sitting on the same
-row as the tabs (right-aligned). Two buttons in a `role="group"`, each carrying
-`aria-pressed`. Active: `card` bg, `foreground` text, subtle shadow. Inactive:
-transparent, `muted-foreground` text.
+Pill-style segmented control matching the Tabs treatment, right-aligned on the
+schedule's top row — sharing it with the tabs in the list view, alone in the
+calendar view. Two buttons in a `role="group"`, each carrying `aria-pressed`.
+Active: `card` bg, `foreground` text, subtle shadow. Inactive: transparent,
+`muted-foreground` text.
 
 ### MonthCalendar (required primary view)
 A real month grid as a native `<table>`, Monday-first, six fixed rows so the
@@ -177,8 +178,16 @@ tracked. Day cells: `border` hairlines, `h-24`, top-aligned; adjacent-month
 cells get `bg-muted/30` and a dimmed day number. Today's day number is
 `primary` and bold, with `aria-current="date"` on the cell.
 
+Today's cell also carries `ring-2 ring-inset ring-primary` — a ring rather than
+a fill, so today reads at a glance in both themes without putting text on a
+`primary` background.
+
 Nav row above the grid: ghost chevron buttons either side of an `h2` month
-label, disabled at the bounds of the data.
+label, disabled at the bounds of the data, plus a small default-variant "Today"
+button beside the label that returns to the current month (disabled while it is
+already on screen).
+
+Note the tabs do **not** appear above the calendar — they filter the list only.
 
 Camp chips: `secondary` bg with `secondary-foreground`, `rounded`, `text-xs`,
 truncated. **Never `primary` as a chip fill** — in dark mode `--primary` is

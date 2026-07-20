@@ -5,9 +5,26 @@ Copied 2026-07-18 from the private job-search workspace
 (`applications/rtcamp/build-plan.md`, the master record). Companion to
 [`PRD.md`](PRD.md) (requirements) and the root `CLAUDE.md` (stack decisions).
 
-## START HERE - current state (updated 2026-07-20)
+## START HERE - current state (updated 2026-07-20, later session)
 
 **Phases 0-6 are DONE except the deploy. The app is built, tested and working.**
+
+**:warning: The calendar view was rebuilt after Phase 6.** What shipped as
+`CalendarView` was a month-GROUPED CARD LIST, not a calendar - opening the app,
+nobody read it as one, so hard requirement #2 was effectively unmet. Since then:
+
+- `CalendarView` -> `ListView` (pure rename, `533f0b5`).
+- New `MonthCalendar`: a real month grid as a native `<table>`, Monday-first,
+  six fixed rows, clamped month navigation, a Today control, multi-day spans.
+- New `ViewToggle` (Calendar / List), persisted to localStorage, default
+  calendar. The upcoming/past **tabs now filter the list only** - a calendar is
+  continuous time, and with tabs the same month rendered twice.
+- `useWordCamps` also returns `camps` (the whole list) for the calendar.
+- **Live-data finding:** 16% of dated records span 15+ days (longest 149).
+  "WordPress Campus Connect" entries are multi-month programmes, not events.
+  They are indexed on their start day only; see `MAX_EXPANDED_SPAN_DAYS`.
+
+**243 tests, 20 suites** - 100% statements / functions / lines, 99.5% branches.
 
 - **Repo exists - do not create a new one.**
   - Local: `~/Claude/Projects/wordcamp-schedule-viewer`
@@ -22,8 +39,8 @@ Copied 2026-07-18 from the private job-search workspace
 
 | Area | State |
 |---|---|
-| App | Complete: calendar view, upcoming/past tabs, all four states, light+dark |
-| Tests | **142 tests, 17 suites** - 100% stmts / 99.2% branches / 100% fns / 100% lines |
+| App | Complete: month-grid calendar + list view, view toggle, tabs filtering the list, all four states, light+dark |
+| Tests | **243 tests, 20 suites** - 100% stmts / 99.5% branches / 100% fns / 100% lines |
 | Lint | Clean (react, react-hooks, jsx-a11y, complexity 10, max-depth 3) |
 | Build | `npm run build` -> `dist/`, ~177 KiB entrypoint |
 | Lighthouse | LOCAL bundle, both themes: A11y 100 / BP 100 / SEO 100 / **Perf 75-77** |
