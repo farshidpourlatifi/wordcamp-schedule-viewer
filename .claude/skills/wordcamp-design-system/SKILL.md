@@ -199,12 +199,12 @@ Pill-style segmented control built on Base UI Tabs. Active pill: `card` bg,
 Base UI provides the roles/keyboard behavior; ensure `aria-selected` and a visible
 `ring` focus outline.
 
-### ViewToggle (Calendar / List)
+### ViewToggle (Calendar / List / Map)
 Pill-style segmented control matching the Tabs treatment, right-aligned on the
-schedule's top row — sharing it with the tabs in the list view, alone in the
-calendar view. Two buttons in a `role="group"`, each carrying `aria-pressed`.
-Active: `card` bg, `foreground` text, subtle shadow. Inactive: transparent,
-`muted-foreground` text.
+schedule's top row — sharing it with the tabs in the list and map views, alone
+in the calendar view. Three buttons in a `role="group"`, each carrying
+`aria-pressed`. Active: `card` bg, `foreground` text, subtle shadow. Inactive:
+transparent, `muted-foreground` text.
 
 ### MonthCalendar (required primary view)
 A real month grid as a native `<table>`, Monday-first, six fixed rows so the
@@ -235,6 +235,21 @@ WordCamps grouped into **month sections** in chronological order. Each section:
 uppercase `primary`-colored month label (`March 2026`) with a `border` hairline
 rule beneath, then a responsive grid of cards
 (`repeat(auto-fill, minmax(240px, 1fr))`).
+
+### MapView (companion view)
+WordCamps as pins on a react-leaflet world map, inside a `border` + `--radius`
+frame at `h-[70vh]` (`min-h-80`). Tiles follow the theme — CARTO Positron
+(light) / Dark Matter (dark), keyed on a `useDarkTheme` MutationObserver so they
+remount on toggle. Plain scroll-to-zoom (a dedicated view, not an embed). Markers
+cluster
+(react-leaflet-cluster) since the past tab has ~1,445; clusters use the plugin's
+default green/yellow bubbles. Popup: bold title linking to the event (external
+link rules apply — `target="_blank" rel="noopener noreferrer"`), date line,
+`muted-foreground` location. The popup renders **outside** the Tailwind base
+layer, so its link colour is set inline from `var(--primary)`, not a token
+class. Camps with no coordinates get the same count-note treatment as the
+calendar's dateless camps. Shares the upcoming/past tabs with the list.
+**Lazily loaded** — Leaflet is ~150 KiB the calendar and list never pay for.
 
 ### WordCampCard
 - Title (h3) — links to the event (`target="_blank" rel="noopener noreferrer"`),

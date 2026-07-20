@@ -43,29 +43,40 @@ src/
   utils/       Pure functions: decode, parse, normalize, partition, group,
                format, calendar grid math
   hooks/       useWordCamps — owns fetch → normalize → partition
-  components/  App, MonthCalendar, ListView, WordCampCard, states,
-               header/footer, theme + view toggles
+  components/  App, MonthCalendar, ListView, MapView (lazy), WordCampCard,
+               states, header/footer, theme + view toggles
     ui/        Hand-written primitives (Card, Button, Skeleton, Tabs)
   lib/         cn() class merger, QueryClient factory
   test/        Shared fixtures (real API records) and render helpers
 ```
 
-### Two views, and why there are two
+### Three views, and why there are three
+
+Each answers a different question about the same list, and a toggle switches
+between them, persisted to `localStorage`.
 
 **`MonthCalendar` is the calendar view** and the app's default — a real month
-grid, Monday-first, one month at a time, over one continuous timeline.
+grid, Monday-first, one month at a time, over one continuous timeline. It
+answers _when_.
 
-**`ListView` is a companion**, not a requirement. The calendar cannot serve the
-archive on its own: there are ~1,445 past camps across ~219 months, so paging
-a month at a time means ~219 clicks to cross it. The list scans that same
-history in one scroll. The two split the work by data density — the calendar
-answers "what is on this day", the list answers "what has there been" — and a
-toggle switches between them, persisted to `localStorage`.
+**`ListView`** scans the archive in one scroll. The calendar cannot serve it on
+its own: there are ~1,445 past camps across ~219 months, so paging a month at a
+time means ~219 clicks to cross it. It answers _what has there been_.
 
-**The upcoming/past tabs belong to the list only.** They are a filter, and a
-calendar is continuous time: with tabs, July 2026 rendered twice, camps before
-the 20th under one tab and after it under the other. The calendar marks today
-instead and shows both sides of it in the same grid.
+**`MapView`** plots camps as pins on a world map. It answers _where_. Built on
+react-leaflet with theme-following CARTO tiles (light/dark); ~1,445 past markers
+are far too many to place individually, so they cluster into counted groups that
+split on zoom.
+~4% of records have no usable coordinates (virtual events, old records) and are
+counted in a note rather than dropped. It is **lazily loaded** — Leaflet and its
+cluster plugin are ~150 KiB the calendar and list never touch, so they download
+only when the map is opened, keeping the two primary views off that weight.
+
+**The upcoming/past tabs belong to the list and the map, not the calendar.**
+They are a filter: the list and the map each read one already-split side. A
+calendar is continuous time — with tabs, July 2026 rendered twice, camps before
+the 20th under one tab and after it under the other — so it marks today instead
+and shows both sides of it in the same grid.
 
 Decisions in the calendar that came from looking at the live data rather than
 guessing at it:
@@ -137,7 +148,7 @@ token-styled elements.
 
 ## Testing
 
-**255 tests across 20 suites. Coverage: 100% statements, 99.5% branches, 100%
+**276 tests across 21 suites. Coverage: 100% statements, 99.5% branches, 100%
 functions, 100% lines** — against a required floor of 60%, enforced in
 `jest.config.js` so a shortfall fails the build rather than relying on someone
 to check.
@@ -184,13 +195,14 @@ project bounds that risk from both ends:
 
 ### End-to-end
 
-Three Playwright scenarios (`npm run test:e2e`) cover what jsdom cannot see: a
+Four Playwright scenarios (`npm run test:e2e`) cover what jsdom cannot see: a
 real browser rendering the calendar `<table>` on load, switching to the list
-and between its tabs, and the error state on a real network failure. The
-WordCamp API is mocked per test, so the suite is deterministic and never
-touches the live feed. Deliberately just three — the 255 Jest tests already
-cover the fine grain far faster; E2E earns its keep only on cross-cutting
-browser behaviour.
+and between its tabs, the map rendering a real Leaflet marker (the one view
+jsdom cannot lay out at all), and the error state on a real network failure.
+The WordCamp API is mocked per test, so the suite is deterministic and never
+touches the live feed. Deliberately few — the 276 Jest tests already cover the
+fine grain far faster; E2E earns its keep only on cross-cutting browser
+behaviour.
 
 ---
 
@@ -323,10 +335,10 @@ all ~1,480 records takes ~26 ms.
 ### What I would do next
 
 1. Cache the response in `sessionStorage` so a reload skips the 4.35 MB fetch.
-2. The optional map view. Note that `_host_coordinates` is empty on most
-   records, so it would need geocoding from the `Location` string.
-3. Add the E2E suite to CI as a separate job (kept out of the blocking
+2. Add the E2E suite to CI as a separate job (kept out of the blocking
    lint/test/build path for now, since it needs a browser download).
+3. A search/filter box over the list — the one obvious affordance the three
+   views don't yet cover.
 
 ---
 
