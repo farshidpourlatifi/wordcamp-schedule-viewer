@@ -3,7 +3,7 @@
 Browse upcoming and past **WordCamps** worldwide, loaded live from the
 [WordCamp Central WordPress REST API](https://central.wordcamp.org/wp-json/wp/v2/wordcamps).
 
-**Live demo:** _pending deploy — see [Deployment](#deployment)_
+**Live demo:** <https://wordcamp-schedule-viewer.vercel.app>
 
 A React app built for rtCamp's Senior React Engineer assignment. The toolchain
 is hand-configured (Webpack + Babel); no scaffold was used.
@@ -135,7 +135,7 @@ token-styled elements.
 
 ## Testing
 
-**142 tests across 17 suites. Coverage: 100% statements, 99.2% branches, 100%
+**245 tests across 20 suites. Coverage: 100% statements, 99.5% branches, 100%
 functions, 100% lines** — against a required floor of 60%, enforced in
 `jest.config.js` so a shortfall fails the build rather than relying on someone
 to check.
@@ -253,24 +253,35 @@ npm run build   # → dist/
 
 ### Lighthouse
 
-_Production scores pending deploy._ Against the production bundle served
-locally (mobile emulation, 4× CPU throttling), in both light and dark themes:
+Against the **production deployment** (Lighthouse 12, desktop preset):
 
-| Category       | Score                      |
-| -------------- | -------------------------- |
-| Accessibility  | 100                        |
-| Best Practices | 100                        |
-| SEO            | 100                        |
-| Performance    | 75–77 (local; see below)   |
+| Category       | Score |
+| -------------- | ----- |
+| Performance    | 100   |
+| Accessibility  | 100   |
+| Best Practices | 100   |
+| SEO            | 100   |
 
-Performance is dominated by one thing: the app downloads **4.35 MB of JSON**
-from the WordCamp API before it can show a complete schedule, and as noted
-above the API offers no working way to trim that payload. First Contentful
-Paint (0.9 s), Largest Contentful Paint (1.8 s) and Cumulative Layout Shift (0)
-are all excellent; the score is pulled down by main-thread time spent
-processing those 15 responses under 4× throttling. The app's own data
-processing is not the culprit — parsing, normalizing and partitioning all 1,480
-records takes ~26 ms.
+Key metrics: LCP 0.4 s, CLS 0.005, TBT 20 ms. Production beats the local
+`serve` numbers (Performance 75–77) for concrete reasons the deploy config
+supplies and a local static server does not: Brotli compression on the
+assets, and the `Cache-Control: immutable` headers in `vercel.json`.
+
+Two of these scores were earned rather than free. The first production run
+came back **Performance 82 / Accessibility 96** — a card-shaped loading
+skeleton standing in for the taller calendar table cost 0.36 Cumulative
+Layout Shift, and the calendar's day-cell links were 20 px tall, under the
+24 px WCAG 2.5.8 target-size minimum. Both were caught by measuring the live
+site, not by eye; the skeleton now mirrors the grid it loads into and the
+chips clear 24 px.
+
+Under **mobile** emulation with 4× CPU throttling the Performance score drops,
+dominated by one thing: the app downloads **~4.35 MB of JSON** from the
+WordCamp API before it can show a complete schedule, and the API offers no
+working way to trim that payload (see [API notes](#notes-on-the-wordcamp-api)).
+The
+app's own work is not the bottleneck — parsing, normalizing and partitioning
+all ~1,480 records takes ~26 ms.
 
 ---
 
