@@ -29,10 +29,11 @@ nobody read it as one, so hard requirement #2 was effectively unmet. Since then:
 **Phase 7.5 done** (Atlas-inspired discovery + performance, see
 [`PHASE-7.5.md`](PHASE-7.5.md)): search + region filter across all three views,
 richer map popups (timezone, anticipated attendance), themed map tiles
-(CARTO light/dark) with scroll-to-zoom and a whole-world min-zoom, and two-tier
-loading (scheduled feed first, archive streams behind).
+(CARTO light/dark) with scroll-to-zoom and a whole-world min-zoom, **List as the
+default view**, and **lazy loading** — the past archive loads on demand, counts
+come from headers.
 
-**330 tests, 26 suites** - 100% statements / functions / lines, 99%+ branches.
+**333 tests, 26 suites** - 100% statements / functions / lines, 99%+ branches.
 Mutation ~95% (utils + api). 5 Playwright E2E. Lighthouse 100/100/100/100.
 
 - **Repo exists - do not create a new one.**
@@ -42,13 +43,15 @@ Mutation ~95% (utils + api). 5 Playwright E2E. Lighthouse 100/100/100/100.
 - **:warning: Many commits are unpushed.** Push to back up and to let CI run.
 - Working tree clean. `npm install && npm start` works from a fresh clone.
 
-**Note on data loading:** the whole feed is fetched because every record is
-rendered (map markers, list archive, calendar timeline), AND the event date is
-a meta field the WP REST API refuses to filter or sort by (`orderby` rejects it;
-`?after`/`?before` use post date, not event date). Counts are free from the
-`X-WP-Total`/`X-WP-TotalPages` headers, but we cannot fetch just a view's slice.
-An on-demand archive (load past only when a past view opens) is possible but was
-judged not worth the calendar complexity - see the chat rationale.
+**Data loading (implemented lazy):** the feed splits exactly by status —
+`wcpt-scheduled` (~40 upcoming) + `wcpt-closed` (~1,441 past) = 1,481 — so each
+side loads on its own. First paint fetches only a `per_page=1` count (reads
+`X-WP-Total`) + the scheduled page; the ~4 MB closed archive loads on demand
+(Past tab, calendar, map past, or search). Status is the ONLY server lever: the
+event date and venue location are meta the API won't filter or sort by
+(`orderby` rejects the date; `meta_key`/`meta_value` is ignored; `?after` uses
+post date). Verified live: 2 requests on load, 15-page closed archive only on
+Past.
 
 ### Where things stand
 

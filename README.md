@@ -55,13 +55,15 @@ src/
 Each answers a different question about the same list, and a toggle switches
 between them, persisted to `localStorage`.
 
-**`MonthCalendar` is the calendar view** and the app's default — a real month
-grid, Monday-first, one month at a time, over one continuous timeline. It
-answers _when_.
+**`MonthCalendar` is the calendar view** — a real month grid, Monday-first, one
+month at a time, over one continuous timeline. It answers _when_. (It needs the
+whole timeline, so it is one click away rather than the landing view — see the
+lazy loading below.)
 
-**`ListView`** scans the archive in one scroll. The calendar cannot serve it on
-its own: there are ~1,445 past camps across ~219 months, so paging a month at a
-time means ~219 clicks to cross it. It answers _what has there been_.
+**`ListView` is the default view** and scans the archive in one scroll. The
+calendar cannot serve it on its own: there are ~1,445 past camps across ~219
+months, so paging a month at a time means ~219 clicks to cross it. It answers
+_what has there been_.
 
 **`MapView`** plots camps as pins on a world map. It answers _where_. Built on
 react-leaflet with theme-following CARTO tiles (light/dark); ~1,445 past markers
@@ -85,10 +87,16 @@ never disagree about what a query means; the tab counts and an aria-live result
 count follow along. Continent is derived from the venue country code through a
 local lookup — no geocoding.
 
-**Loading is two-tier.** The scheduled feed (`?status=wcpt-scheduled`, ~40
-records in one request) drives the first paint; the full ~1,500-record archive
-streams in behind it, so upcoming events are usable in a blink instead of
-waiting on 15 requests and 4.35 MB.
+**Loading is lazy.** The feed splits exactly by status — `wcpt-scheduled` (~40
+upcoming) + `wcpt-closed` (~1,441 past) = 1,481 — so each side loads on its own.
+First paint fetches only a one-record count (reading `X-WP-Total`) and the
+scheduled feed; the ~4 MB past archive loads only when something reaches into
+it: the Past tab, the calendar, the map's past side, or a search. The header
+total gives an honest **Past (1,444)** count with no past records loaded. This
+is the only lever the API offers — event date and venue location are meta
+fields it won't filter or sort by, so a per-view slice can't be fetched. The
+**list is the default view** for the same reason: its Upcoming tab needs only
+the fast feed, so landing there keeps the archive unloaded.
 
 Decisions in the calendar that came from looking at the live data rather than
 guessing at it:
@@ -160,7 +168,7 @@ token-styled elements.
 
 ## Testing
 
-**330 tests across 26 suites. Coverage: 100% statements, 99%+ branches, 100%
+**333 tests across 26 suites. Coverage: 100% statements, 99%+ branches, 100%
 functions, 100% lines** — against a required floor of 60%, enforced in
 `jest.config.js` so a shortfall fails the build rather than relying on someone
 to check.
