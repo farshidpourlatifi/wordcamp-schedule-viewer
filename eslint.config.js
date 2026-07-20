@@ -25,6 +25,11 @@ module.exports = [
       "coverage/**",
       "node_modules/**",
       "playwright-report/**",
+      "test-results/**",
+      // Stryker's generated report and working directory — vendored/generated
+      // JS that must never be linted.
+      "reports/**",
+      ".stryker-tmp/**",
     ],
   },
 
@@ -85,6 +90,15 @@ module.exports = [
   // (jest.setup.js is excluded: it is ESM and covered by the test block above.)
   {
     files: ["*.config.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: globals.node,
+    },
+  },
+
+  // Playwright E2E specs and helpers are CommonJS running in Node.
+  {
+    files: ["e2e/**/*.js"],
     languageOptions: {
       sourceType: "commonjs",
       globals: globals.node,
