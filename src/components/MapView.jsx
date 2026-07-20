@@ -15,6 +15,7 @@ import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
+import { useDarkTheme } from "@/hooks/useDarkTheme";
 import { formatCampDate } from "@/utils/formatDate";
 
 L.Icon.Default.mergeOptions({
@@ -22,6 +23,17 @@ L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 });
+
+// OpenStreetMap's own tiles are light-only. CARTO's basemaps ship a matched
+// light/dark pair (Positron / Dark Matter) — free, no key — so the map can
+// follow the app's theme instead of glaring white over a dark page.
+const TILES = {
+  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+};
+
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 /**
  * The map view: WordCamps as pins on a world map.
@@ -48,6 +60,8 @@ const INITIAL_ZOOM = 2;
  * @param {string} props.emptyMessage Shown when there are no camps at all.
  */
 export function MapView({ camps, emptyMessage }) {
+  const isDark = useDarkTheme();
+
   const located = useMemo(
     () => camps.filter((camp) => camp.coordinates),
     [camps],
@@ -65,15 +79,19 @@ export function MapView({ camps, emptyMessage }) {
         <MapContainer
           center={INITIAL_CENTER}
           zoom={INITIAL_ZOOM}
-          scrollWheelZoom={false}
+          // The map is a dedicated full-width view, not a small embed, so plain
+          // scroll-to-zoom is the expected gesture — there is little page to
+          // trap the scroll against.
+          scrollWheelZoom
           worldCopyJump
           className="h-full w-full"
         >
           <TileLayer
-            // OpenStreetMap's standard tiles — free, no key, attribution
-            // required and provided below.
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            // Keyed on the theme so it remounts with fresh tiles when the theme
+            // toggles, rather than leaving stale ones on screen.
+            key={isDark ? "dark" : "light"}
+            attribution={TILE_ATTRIBUTION}
+            url={isDark ? TILES.dark : TILES.light}
           />
 
           <MarkerClusterGroup chunkedLoading>

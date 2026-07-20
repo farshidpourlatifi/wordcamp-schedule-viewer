@@ -178,6 +178,12 @@ describe("normalizeWordCamp", () => {
       expect(normalizeWordCamp({ id: 1 }).coordinates).toBeNull();
     });
 
+    it("is null — not a throw — when the field is null", () => {
+      // typeof null === "object", so the truthiness guard, not the type check,
+      // is what stops `null.latitude` from throwing.
+      expect(withVenue(null)).toBeNull();
+    });
+
     it("rejects a pair that is not finite", () => {
       expect(withVenue({ latitude: "north", longitude: 5 })).toBeNull();
     });
