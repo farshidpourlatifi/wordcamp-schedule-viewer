@@ -33,6 +33,9 @@ module.exports = {
     // effect only, so mapping them to an empty stub is sufficient — we assert
     // on behaviour and semantics, never on computed styles.
     "\\.css$": "<rootDir>/src/test/styleStub.js",
+    // Likewise for image assets (e.g. Leaflet's marker icons): Jest cannot
+    // parse a binary as a module, so it resolves to a stand-in URL string.
+    "\\.(png|jpe?g|gif|svg|webp|ico)$": "<rootDir>/src/test/fileStub.js",
   },
 
   collectCoverageFrom: [
