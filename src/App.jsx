@@ -5,7 +5,7 @@ import { AppFooter } from "@/components/AppFooter";
 import { Filters } from "@/components/Filters";
 import { ListView } from "@/components/ListView";
 import { MonthCalendar } from "@/components/MonthCalendar";
-import { LoadingState, ErrorState } from "@/components/states";
+import { LoadingState, ErrorState, Spinner } from "@/components/states";
 import {
   ViewToggle,
   VIEW_CALENDAR,
@@ -169,8 +169,11 @@ function LoadedSchedule({
   // a loading message while its archive is still in flight.
   const emptyFor = (base) =>
     isFiltering ? "No WordCamps match your search." : base;
+  // While the archive streams, the spinner beside the tab (or the calendar's
+  // toggle row) carries the state — so the past panel stays blank rather than
+  // repeating it.
   const pastEmpty = isArchiveLoading
-    ? "Loading the full archive…"
+    ? ""
     : emptyFor("No past WordCamps found.");
 
   return (
@@ -184,18 +187,33 @@ function LoadedSchedule({
         totalCount={totalCount}
       />
 
+      {/* One announcement for the archive load; every visible spinner is
+          aria-hidden, so this is the single voice a screen reader hears. */}
       {isArchiveLoading && (
-        // The upcoming feed is already on screen; this notes the past archive
-        // is still arriving, so the Past count settling upward reads as loading
-        // rather than a glitch.
-        <p role="status" className="mb-4 text-sm text-muted-foreground">
-          Loading the full archive…
-        </p>
+        <span role="status" className="sr-only">
+          Loading past events…
+        </span>
       )}
 
       {view === VIEW_CALENDAR ? (
         <>
-          <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
+          {/* The calendar has no tabs, so the indicator sits where the tabs do
+              in the other views — the toggle row. */}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            {isArchiveLoading ? (
+              // Visual only — the sr-only status above is what a screen reader
+              // announces, so this is not read twice.
+              <span
+                aria-hidden="true"
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <Spinner />
+                Loading past events…
+              </span>
+            ) : (
+              <span />
+            )}
+
             <ViewToggle view={view} onViewChange={onViewChange} />
           </div>
 
@@ -209,7 +227,12 @@ function LoadedSchedule({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList>
               <Tab value={TAB_UPCOMING}>Upcoming ({shownUpcoming.length})</Tab>
-              <Tab value={TAB_PAST}>Past ({pastCount})</Tab>
+              <Tab value={TAB_PAST}>
+                <span className="inline-flex items-center gap-1.5">
+                  Past ({pastCount})
+                  {isArchiveLoading && <Spinner />}
+                </span>
+              </Tab>
             </TabsList>
 
             <ViewToggle view={view} onViewChange={onViewChange} />

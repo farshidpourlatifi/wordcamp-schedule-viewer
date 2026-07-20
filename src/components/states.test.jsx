@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { LoadingState, ErrorState } from "@/components/states";
+import { LoadingState, ErrorState, Spinner } from "@/components/states";
 import { DAYS_PER_WEEK, WEEKS_PER_GRID } from "@/utils/calendarGrid";
 
 describe("LoadingState", () => {
@@ -61,6 +61,16 @@ describe("LoadingState", () => {
 
       expect(container.querySelector(".h-\\[70vh\\]")).toBeInTheDocument();
     });
+  });
+});
+
+describe("Spinner", () => {
+  it("renders a decorative, aria-hidden spinner", () => {
+    const { container } = render(<Spinner />);
+
+    const svg = container.querySelector("svg");
+    expect(svg).toHaveClass("animate-spin");
+    expect(svg).toHaveAttribute("aria-hidden", "true");
   });
 });
 

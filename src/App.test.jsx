@@ -371,16 +371,18 @@ describe("App", () => {
       // The calendar requests the archive on mount.
       renderInView("calendar");
 
-      expect(
-        await screen.findByText("Loading the full archive…"),
-      ).toBeInTheDocument();
+      // Once the calendar has rendered (scheduled loaded, skeleton gone), the
+      // only status region is the archive announcement; the visible spinner
+      // beside it is aria-hidden.
+      await screen.findByRole("table", { name: /WordCamps in/ });
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Loading past events…",
+      );
 
       releaseArchive();
 
       await waitFor(() =>
-        expect(
-          screen.queryByText("Loading the full archive…"),
-        ).not.toBeInTheDocument(),
+        expect(screen.queryByRole("status")).not.toBeInTheDocument(),
       );
     });
 

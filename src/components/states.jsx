@@ -1,5 +1,8 @@
+import { Loader2 } from "lucide-react";
+
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/cn";
 import { DAYS_PER_WEEK, WEEKS_PER_GRID } from "@/utils/calendarGrid";
 
 /**
@@ -12,6 +15,28 @@ import { DAYS_PER_WEEK, WEEKS_PER_GRID } from "@/utils/calendarGrid";
 
 /** Skeleton cards shown while the first load is in flight. */
 const SKELETON_CARD_COUNT = 6;
+
+/**
+ * A small spinning indicator for a load that runs while content is already on
+ * screen — the past archive streaming in after the first paint. A spinner
+ * rather than a skeleton, because the layout is already settled; a skeleton
+ * would imply nothing is there yet.
+ *
+ * Decorative: `aria-hidden`, so the caller announces the load through its own
+ * `role="status"` region rather than every spinner competing to speak.
+ *
+ * @param {Object} props
+ * @param {string} [props.className]
+ */
+export function Spinner({ className }) {
+  return (
+    <Loader2
+      size={14}
+      aria-hidden="true"
+      className={cn("animate-spin", className)}
+    />
+  );
+}
 
 /**
  * Loading placeholder.
