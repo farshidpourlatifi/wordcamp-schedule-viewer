@@ -45,15 +45,24 @@ experience: a clear README, a sensible file layout, meaningful commits.
    Do NOT squash everything into one "initial commit."
 
 ### Acceptance checklist (all must be true before submitting)
-- [ ] `git clone && npm install && npm start` runs the app locally with zero extra steps
-- [ ] App calls the real WordCamp Central WP REST API at runtime
-- [ ] Upcoming and past WordCamps both display, correctly split by date
-- [ ] Calendar view present and is the primary view
-- [ ] `npm test` passes; `npm run test:coverage` reports **≥ 60%** on all metrics
-- [ ] No create-react-app / scaffold artifacts; build config is hand-written and commented
-- [ ] Public repo, clean incremental commit history, no `node_modules` committed
+
+_Status as of 2026-07-20. Two items outstanding, both downstream of the deploy._
+
+- [x] `git clone && npm install && npm start` runs the app locally with zero extra steps
+- [x] App calls the real WordCamp Central WP REST API at runtime
+- [x] Upcoming and past WordCamps both display, correctly split by date
+      (verified live: 37 upcoming / 1,443 past)
+- [x] Calendar view present and is the primary view
+- [x] `npm test` passes; `npm run test:coverage` reports **≥ 60%** on all metrics
+      (142 tests; 100% stmts / 99.2% branches / 100% fns / 100% lines)
+- [x] No create-react-app / scaffold artifacts; build config is hand-written and commented
+- [~] Public repo, clean incremental commit history, no `node_modules` committed
+      — history is clean and `node_modules`/`dist` are ignored, but **the last
+      20 commits are not pushed yet** (Farshid is reviewing history first)
 - [ ] Live hosted demo URL works (open in incognito to confirm)
-- [ ] README explains setup, architecture, the from-scratch tooling choice, and the demo link
+      — **BLOCKED: deploy deferred.** `vercel.json` is ready; needs Farshid's account
+- [~] README explains setup, architecture, the from-scratch tooling choice, and the demo link
+      — written; the demo link is marked pending until the deploy happens
 
 ---
 

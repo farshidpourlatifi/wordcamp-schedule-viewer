@@ -5,18 +5,56 @@ Copied 2026-07-18 from the private job-search workspace
 (`applications/rtcamp/build-plan.md`, the master record). Companion to
 [`PRD.md`](PRD.md) (requirements) and the root `CLAUDE.md` (stack decisions).
 
-## Current state
+## START HERE - current state (updated 2026-07-20)
+
+**Phases 0-6 are DONE except the deploy. The app is built, tested and working.**
 
 - **Repo exists - do not create a new one.**
   - Local: `~/Claude/Projects/wordcamp-schedule-viewer`
-  - Remote: `github.com/farshidpourlatifi/wordcamp-schedule-viewer` (PUBLIC), in sync
+  - Remote: `github.com/farshidpourlatifi/wordcamp-schedule-viewer` (PUBLIC)
   - Git author: farshidpourlatifi <farshid.pourlatifi@gmail.com> (correct - no work identity leak)
-- Docs-only commits from 2026-07-02 + 2026-07-18. **No source code yet.**
-- Stack already decided in the repo's CLAUDE.md: React 18, hand-wired Webpack 5 + Babel
-  (no CRA/Vite scaffold), Tailwind CSS + Base UI primitives, shadcn-style OKLCH tokens
-  (light/dark, in `.claude/skills/wordcamp-design-system/`), TanStack Query + code-based
-  TanStack Router, Jest + RTL (>=60% enforced via coverageThreshold), Playwright E2E,
-  Vercel deploy, GitHub Actions CI.
+- **:warning: 20 commits are LOCAL ONLY.** `main` is 20 ahead of `origin/main`.
+  Farshid chose on 2026-07-20 not to push yet (wants to review history first).
+  Nothing is backed up until that push happens.
+- Working tree clean. `npm install && npm start` works from a fresh clone.
+
+### Where things stand
+
+| Area | State |
+|---|---|
+| App | Complete: calendar view, upcoming/past tabs, all four states, light+dark |
+| Tests | **142 tests, 17 suites** - 100% stmts / 99.2% branches / 100% fns / 100% lines |
+| Lint | Clean (react, react-hooks, jsx-a11y, complexity 10, max-depth 3) |
+| Build | `npm run build` -> `dist/`, ~177 KiB entrypoint |
+| Lighthouse | LOCAL bundle, both themes: A11y 100 / BP 100 / SEO 100 / **Perf 75-77** |
+| Deploy | **NOT DONE** - deferred by Farshid; needs his Vercel account |
+| README | Written; demo link + production Lighthouse rows marked pending |
+
+### Next actions, in order
+
+1. **Push** `main` (20 commits) once Farshid has reviewed the history.
+2. **Deploy to Vercel.** `vercel.json` is ready and needs no extra settings -
+   import the repo at vercel.com/new. Requires Farshid's account; the CLI is
+   not installed and login is interactive.
+3. **Run Lighthouse against the PRODUCTION URL**, then replace the "pending"
+   rows in README.md with the real scores. Expect Performance to beat the
+   local 75-77: local `serve` has no compression and ignores the `vercel.json`
+   cache headers. If production Perf is still <90, document why (4.35 MB API
+   payload) rather than hacking the score - see the Phase 6 analysis below.
+4. **Phase 7 stretch** (gated on the Phase 6 deploy being green): CI, then
+   Stryker mutation testing, then Playwright. See Phase 7 for the ordering
+   rationale.
+
+### Stack (decided in CLAUDE.md; all in place except where noted)
+
+React 18, hand-wired Webpack 5 + Babel (no CRA/Vite scaffold), Tailwind CSS +
+Base UI primitives (**`@base-ui/react`** - renamed from `@base-ui-components/react`
+at 1.0), shadcn-style OKLCH tokens (light/dark, in
+`.claude/skills/wordcamp-design-system/`), TanStack Query, Jest + RTL (>=60%
+enforced via coverageThreshold), Vercel deploy.
+**Not built (Phase 7, optional):** TanStack Router, Playwright, GitHub Actions,
+Stryker, map view. The app currently has no router - it is a single view with
+tabs, which the assignment does not require routes for.
 
 ## AI-docs decision - RESOLVED 2026-07-18
 
@@ -324,7 +362,28 @@ Do not start Phase 7 until Phases 5 and 6 gates are green.
 
 ## Working agreement
 
-Build in this repo. Opening prompt for a fresh session: "Read CLAUDE.md,
-docs/PRD.md, docs/ASSESSMENT.md, and docs/BUILD-PLAN.md, then start Phase 0.
-Tick checkboxes in BUILD-PLAN.md as tasks complete." Phase 8 (submission) happens
-in the private job-search workspace - see ASSESSMENT.md for the cross-reference.
+Build in this repo. **Opening prompt for a fresh session:**
+
+> Read CLAUDE.md, docs/PRD.md, docs/ASSESSMENT.md, and docs/BUILD-PLAN.md.
+> Phases 0-6 are done except the Vercel deploy - see "START HERE" at the top of
+> BUILD-PLAN.md for current state and next actions. Tick checkboxes in
+> BUILD-PLAN.md as tasks complete.
+
+Phase 8 (submission) happens in the private job-search workspace - see
+ASSESSMENT.md for the cross-reference.
+
+### Habits worth keeping (learned during Phases 0-6)
+
+- **Verify against the live API before coding a parser.** Every one of the
+  Phase 0/2 findings (top-level meta, seconds-as-string dates, `_fields`
+  dropping the date key) contradicted the written assumptions.
+- **Green tests are not evidence the UI works.** Two Phase 4 bugs shipped
+  passing their suites and were only caught by driving a real browser. Do a
+  browser pass on any UI change.
+- **Run Lighthouse before declaring UI done** - it audits dark mode by default
+  and caught a WCAG AA failure that eyeballing did not.
+- **Measure before optimizing.** The Perf score looked like a data-layer
+  problem; profiling showed the data layer costs ~26ms and the payload is the
+  whole story.
+- Commit messages carry the *why*, especially for a non-obvious trade-off.
+  History is graded.
