@@ -1,0 +1,58 @@
+# Continuous integration: lint, test, and build on every push and PR.
+#
+# The three checks mirror the local workflow exactly, so "green in CI" means
+# the same thing as "green on my machine". Mutation testing is deliberately
+# NOT here — it is slow and advisory, and runs from its own manual workflow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to a branch cancels the previous run for that branch, so the
+# queue never fills with stale commits.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # One version failing should not hide the result of the other.
+      fail-fast: false
+      matrix:
+        # 20 is the current LTS; 22 is what the Vercel deploy builds on. The
+        # engines floor is 18, but testing the two versions people actually
+        # run is more useful than testing the oldest one supported.
+        node-version: [20.x, 22.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          # Cache ~/.npm keyed on the lockfile, so unchanged deps restore
+          # instead of reinstalling.
+          cache: npm
+
+      # npm ci installs exactly the locked tree and fails on any drift from
+      # package-lock.json — the reproducible-install counterpart to npm install.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Coverage rather than a plain run: jest.config.js enforces the 60%
+      # floor via coverageThreshold, so a drop fails the build here too.
+      - name: Test
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
