@@ -226,21 +226,60 @@ Driven against the real API in both themes: 37 upcoming across 9 month sections,
 counting down (207 -> 195 more months), theme toggle persisting to localStorage,
 exactly one visible tab panel.
 
-### Phase 6 - Hardening, SEO, deploy, Lighthouse, README
-Security pass:
-- [ ] grep confirms zero `dangerouslySetInnerHTML` / `innerHTML` on API data
-- [ ] All external links `rel="noopener noreferrer"`
-- [ ] `npm audit` - fix, or document known-safe exceptions in README
-- [ ] No secrets/tokens anywhere (view-only app - there should be none)
-SEO pass (SPA-appropriate; no SSR - deliberate, note it in README limitations):
-- [ ] `<title>`, meta description, `lang` attr, favicon
-- [ ] OG tags (optional, if time allows)
-Deploy + Lighthouse gate:
+### Phase 6 - Hardening, SEO, deploy, Lighthouse, README - 2026-07-19/20
+Security pass - DONE (`209c1c8`):
+- [x] grep confirms zero `dangerouslySetInnerHTML` / `innerHTML` on API data
+      -> only occurrences are comments explaining why they are avoided
+- [x] All external links `rel="noopener noreferrer"` (card + footer)
+- [x] `npm audit` - **0 vulnerabilities**. NOTE: the local npm registry is set
+      to `http://`, which the audit endpoint rejects with 426; run
+      `npm audit --registry=https://registry.npmjs.org/`
+- [x] No secrets/tokens anywhere (view-only app - there should be none)
+SEO pass - DONE (`209c1c8`):
+- [x] `<title>`, meta description, `lang` attr, favicon
+- [x] OG tags -> og:type/title/description + twitter:card + theme-color.
+      **og:image deliberately omitted** rather than pointed at a placeholder.
+- [x] robots.txt added - the SPA rewrite was answering `/robots.txt` with HTML,
+      which Lighthouse flags as invalid. Needed copy-webpack-plugin to ship
+      static files from `public/`.
+Deploy + Lighthouse gate - **DEFERRED 2026-07-20 at Farshid's request**:
 - [ ] Vercel deploy (SPA rewrite -> /index.html); demo verified in incognito
-- [ ] Lighthouse against the PRODUCTION URL: targets Accessibility >=95,
-      Best Practices >=95, SEO >=90, Performance >=90 (fetch-heavy SPA - if perf
-      lands lower, document why in README rather than hacking it)
-- [ ] Record the four scores in the README
+      -> BLOCKED: needs Farshid's Vercel account (CLI not installed, login is
+      interactive). `vercel.json` is written and ready; git-integration import
+      needs no further settings. Farshid chose to hold.
+- [ ] Lighthouse against the PRODUCTION URL (targets: A11y >=95, BP >=95,
+      SEO >=90, Perf >=90) -> blocked on the deploy above
+- [ ] Record the four scores in the README -> local scores recorded meanwhile,
+      clearly labelled as local and pending
+- [x] **Local Lighthouse on the production bundle, BOTH themes:**
+      **A11y 100 / Best Practices 100 / SEO 100 / Performance 75-77**
+README - DONE (`2b7639c`):
+- [x] Setup, architecture + why, from-scratch tooling rationale, testing approach +
+      coverage number, API caveats, limitations / next steps
+- [x] Manual tab-activation choice documented in the a11y notes as deliberate
+- [x] Staleness note (frozen upcoming/past boundary) in limitations
+- [x] Test-quality rationale (complexity cap + Stryker, marked **planned**)
+
+#### :warning: Phase 6 finding - dark-mode accent FAILED WCAG AA (fixed, `209c1c8`)
+Lighthouse audits in dark mode by default, which is how this surfaced. The dark
+`--primary` scored **2.64:1** against the page and **2.35:1** against a card -
+and it is not decoration, it carries every month heading and card date line, so
+it is small bold TEXT needing 4.5:1. Lightened `oklch(0.443 -> 0.65 ...)`,
+giving 6.24:1 / 5.56:1. The design-system skill claimed AA in both modes and was
+wrong; SKILL.md is corrected with the measured numbers.
+**Trade-off recorded:** at L=0.65, `primary-foreground` on a `primary` fill is
+only 2.99:1, so dark-mode `primary` is now a TEXT accent only. Nothing uses it
+as a fill; if a filled accent is ever needed, add `--primary-fill`.
+
+#### Performance analysis (why Perf is ~76 locally, not >=90)
+Measured rather than guessed. FCP 0.9s, LCP 1.8s, CLS 0 are all excellent; the
+score is held down by Total Blocking Time (1,240ms) under Lighthouse's default
+**mobile emulation + 4x CPU throttling**. Profiling the app's own work against
+live data: `JSON.parse` 19ms, normalize 5ms, partition 2ms - **~26ms total**, so
+the data layer is NOT the cause. The cost is downloading and processing
+**4.35 MB** of API JSON, which `_fields` cannot trim (it drops the date meta).
+Local `serve` also has no compression and ignores `vercel.json` cache headers,
+both of which production supplies - so measure production before optimizing.
 README (PRD §8):
 - [ ] Setup, architecture + why, from-scratch tooling rationale, testing approach +
       coverage number, API caveats (pagination, date meta), Lighthouse scores,
