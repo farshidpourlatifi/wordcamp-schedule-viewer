@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { CalendarView, INITIAL_MONTHS } from "@/components/CalendarView";
+import { ListView, INITIAL_MONTHS } from "@/components/ListView";
 
 const camp = (id, iso) => ({
   id,
@@ -23,9 +23,9 @@ const campsAcrossMonths = (count) =>
   }));
 
 const renderView = (props) =>
-  render(<CalendarView emptyMessage="Nothing here." {...props} />);
+  render(<ListView emptyMessage="Nothing here." {...props} />);
 
-describe("CalendarView", () => {
+describe("ListView", () => {
   it("groups camps under month headings", () => {
     renderView({
       camps: [

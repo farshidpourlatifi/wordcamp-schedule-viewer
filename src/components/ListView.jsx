@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { groupByMonth } from "@/utils/groupByMonth";
 
 /**
- * The calendar view: WordCamps grouped into month sections.
+ * The list view: WordCamps grouped into month sections.
+ *
+ * Companion to `MonthCalendar`, which is the assignment's required primary
+ * view. This list exists because the calendar cannot serve the Past tab: a
+ * month-at-a-time grid means ~219 clicks to page through history. The list
+ * scans that history in one scroll, so the two views split the work by
+ * density rather than duplicating each other.
  *
  * Long lists reveal progressively. The Past list runs to ~1,443 camps across
  * ~219 month sections against live data — rendering that in one pass costs
@@ -24,7 +30,7 @@ export const INITIAL_MONTHS = 12;
  * @param {string} props.emptyMessage Shown when there are no camps at all.
  * @param {string} [props.revealLabel] Label for the reveal button.
  */
-export function CalendarView({ camps, emptyMessage, revealLabel }) {
+export function ListView({ camps, emptyMessage, revealLabel }) {
   const groups = useMemo(() => groupByMonth(camps), [camps]);
   const [visibleMonths, setVisibleMonths] = useState(INITIAL_MONTHS);
 

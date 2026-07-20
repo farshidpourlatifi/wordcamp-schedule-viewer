@@ -1,6 +1,6 @@
 import { AppHeader } from "@/components/AppHeader";
 import { AppFooter } from "@/components/AppFooter";
-import { CalendarView } from "@/components/CalendarView";
+import { ListView } from "@/components/ListView";
 import { LoadingState, ErrorState } from "@/components/states";
 import { Tabs, TabsList, Tab, TabPanel } from "@/components/ui/tabs";
 import { useWordCamps } from "@/hooks/useWordCamps";
@@ -35,7 +35,7 @@ export function App() {
             </TabsList>
 
             <TabPanel value={TAB_UPCOMING}>
-              <CalendarView
+              <ListView
                 camps={upcoming}
                 emptyMessage="No upcoming WordCamps with scheduled dates."
                 revealLabel="Show later"
@@ -43,7 +43,7 @@ export function App() {
             </TabPanel>
 
             <TabPanel value={TAB_PAST}>
-              <CalendarView
+              <ListView
                 camps={past}
                 emptyMessage="No past WordCamps found."
                 revealLabel="Show earlier"
