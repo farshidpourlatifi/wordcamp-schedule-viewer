@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DAYS_PER_WEEK, WEEKS_PER_GRID } from "@/utils/calendarGrid";
 
 /**
  * Loading and error states.
@@ -15,12 +16,21 @@ const SKELETON_CARD_COUNT = 6;
 /**
  * Loading placeholder.
  *
- * Skeleton cards rather than a spinner, so the layout does not jump when the
+ * Skeleton shapes rather than a spinner, so the layout does not jump when the
  * real content lands. The region is a live region carrying real text — the
  * shapes themselves are aria-hidden, so assistive tech hears "Loading
  * WordCamps…" instead of nothing.
+ *
+ * The shape follows the view being loaded into. A card skeleton standing in
+ * for the calendar table cost 0.36 CLS on the deployed build: the table is
+ * several times taller, so everything below it jumped when the data arrived.
+ *
+ * @param {Object} props
+ * @param {boolean} [props.calendar] Reserve the month grid's shape instead.
  */
-export function LoadingState() {
+export function LoadingState({ calendar = false }) {
+  if (calendar) return <CalendarSkeleton />;
+
   return (
     <div role="status" aria-live="polite">
       <span className="sr-only">Loading WordCamps…</span>
@@ -35,6 +45,57 @@ export function LoadingState() {
             <Skeleton className="h-3 w-20" />
           </Card>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Loading placeholder shaped like the month grid.
+ *
+ * Reserves the real table's geometry — nav row, seven columns, six rows of
+ * `h-24` cells — so the calendar drops into space already held for it.
+ */
+function CalendarSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading WordCamps…</span>
+
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <Skeleton className="h-9 w-9" />
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-9 w-9" />
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="min-w-[44rem]">
+          <div className="grid grid-cols-7">
+            {Array.from({ length: DAYS_PER_WEEK }, (_, index) => (
+              <div
+                key={index}
+                className="border border-border p-2"
+                aria-hidden="true"
+              >
+                <Skeleton className="mx-auto h-3 w-8" />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7">
+            {Array.from(
+              { length: WEEKS_PER_GRID * DAYS_PER_WEEK },
+              (_, index) => (
+                <div
+                  key={index}
+                  className="h-24 border border-border p-1"
+                  aria-hidden="true"
+                >
+                  <Skeleton className="h-3 w-4" />
+                </div>
+              ),
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { LoadingState, ErrorState } from "@/components/states";
+import { DAYS_PER_WEEK, WEEKS_PER_GRID } from "@/utils/calendarGrid";
 
 describe("LoadingState", () => {
   it("announces itself as a live region with real text", () => {
@@ -22,6 +23,28 @@ describe("LoadingState", () => {
     expect(
       container.querySelectorAll('[aria-hidden="true"]').length,
     ).toBeGreaterThan(1);
+  });
+
+  describe("calendar variant", () => {
+    it("still announces itself", () => {
+      render(<LoadingState calendar />);
+
+      const status = screen.getByRole("status");
+      expect(status).toHaveTextContent("Loading WordCamps");
+      expect(status).toHaveAttribute("aria-live", "polite");
+    });
+
+    it("reserves a full month grid of cells", () => {
+      // The card skeleton standing in for the table cost 0.36 CLS in
+      // production: the grid is several times taller, so the page jumped when
+      // the data landed. Counting cells is the cheap proxy for "same shape" —
+      // jsdom has no layout, so the height itself cannot be asserted here.
+      const { container } = render(<LoadingState calendar />);
+
+      const cells = container.querySelectorAll(".h-24");
+
+      expect(cells).toHaveLength(WEEKS_PER_GRID * DAYS_PER_WEEK);
+    });
   });
 });
 

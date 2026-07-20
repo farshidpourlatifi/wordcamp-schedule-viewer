@@ -49,7 +49,7 @@ export function App() {
       <AppHeader />
 
       <main>
-        {isLoading && <LoadingState />}
+        {isLoading && <LoadingState calendar={view === VIEW_CALENDAR} />}
 
         {isError && <ErrorState error={error} onRetry={refetch} />}
 
