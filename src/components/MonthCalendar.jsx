@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -101,7 +102,7 @@ export function MonthCalendar({ camps, emptyMessage, now = new Date() }) {
           disabled={atFirst}
           aria-label="Previous month"
         >
-          <ChevronIcon direction="left" />
+          <ChevronLeft size={18} aria-hidden="true" />
         </Button>
 
         <div className="flex items-center gap-3">
@@ -130,7 +131,7 @@ export function MonthCalendar({ camps, emptyMessage, now = new Date() }) {
           disabled={atLast}
           aria-label="Next month"
         >
-          <ChevronIcon direction="right" />
+          <ChevronRight size={18} aria-hidden="true" />
         </Button>
       </div>
 
@@ -313,26 +314,3 @@ function CampChip({ camp, isStart }) {
   );
 }
 
-/**
- * Inline SVG rather than an icon dependency, matching ThemeToggle.
- *
- * @param {Object} props
- * @param {"left"|"right"} props.direction
- */
-function ChevronIcon({ direction }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="18"
-      height="18"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={direction === "left" ? "M15 18l-6-6 6-6" : "M9 18l6-6-6-6"} />
-    </svg>
-  );
-}

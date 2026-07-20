@@ -133,6 +133,41 @@ Light mode is unchanged: `oklch(0.5 0.134 242.749)` on white is 5.85:1.
   `h3` (card title) 1rem/600 · body 1rem/400 · meta 0.85rem.
 - Line-height 1.5 body, 1.2 headings. Left-aligned. No justification.
 
+### Icons — Lucide (`lucide-react`)
+
+**Lucide is the icon set.** It is the same family shadcn/ui ships with, so it
+matches this token theme's house style by construction: 24×24 viewbox, 2px
+stroke, `currentColor`, rounded caps and joins. The hand-rolled SVGs this app
+started with were already drawn to that spec — switching was a like-for-like
+swap, not a restyle.
+
+Why a dependency at all, when the project's instinct is to avoid them: four
+icons had accumulated across two components, each a hand-copied path, and the
+map view will want more (pin, layers, locate). One tree-shaken import beats a
+growing pile of inline `<path>` data that nobody can review by eye.
+
+**It tree-shakes.** Import icons by name — never the barrel as a namespace.
+Four icons cost **+2 KiB** on the entrypoint (271 → 273 KiB), verified against
+the production build. If that number jumps, someone has written
+`import * as Icons`.
+
+```jsx
+import { ChevronLeft, Sun } from "lucide-react";   // ✅ per-icon
+import * as Icons from "lucide-react";             // ❌ pulls the whole set
+```
+
+**Rules:**
+- `size={18}` inside ghost/icon buttons — it matches the optical weight of
+  18px text; Lucide's own default is 24.
+- Always `aria-hidden="true"`. The icon is never the accessible name; the
+  button carries `aria-label`, or a `sr-only` span does.
+- Colour comes from `currentColor` — style the parent with a token
+  (`text-muted-foreground`), never put a fill on the icon.
+- Don't mix in a second icon set, for the same reason there is one accent colour.
+
+**In use:** `Sun` / `Moon` (ThemeToggle), `ChevronLeft` / `ChevronRight`
+(MonthCalendar navigation).
+
 ### Spacing & shape
 
 - 4px base scale (Tailwind default). Card padding `1rem–1.1rem`. Section gap `2rem`.
