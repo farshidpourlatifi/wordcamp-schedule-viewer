@@ -206,4 +206,59 @@ describe("App", () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
   });
+
+  describe("view switching", () => {
+    afterEach(() => {
+      // The stored view would otherwise leak into the next test's default.
+      localStorage.clear();
+    });
+
+    it("opens on the calendar, the assignment's required primary view", async () => {
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+
+      expect(
+        await screen.findByRole("table", { name: /WordCamps in March 2099/ }),
+      ).toBeInTheDocument();
+    });
+
+    it("switches to the month-section list", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.click(await screen.findByRole("button", { name: "List" }));
+
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { level: 2, name: "March 2099" }),
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the chosen view across a tab switch", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.click(await screen.findByRole("button", { name: "List" }));
+      await user.click(screen.getByRole("tab", { name: /Past/ }));
+
+      // Still the list, now showing the past camp's month.
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { level: 2, name: "June 2001" }),
+      ).toBeInTheDocument();
+    });
+
+    it("remembers the view for the next visit", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.click(await screen.findByRole("button", { name: "List" }));
+
+      expect(localStorage.getItem("schedule-view")).toBe("list");
+    });
+  });
 });
