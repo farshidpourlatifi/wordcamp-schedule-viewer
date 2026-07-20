@@ -27,8 +27,10 @@ module.exports = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
 
   moduleNameMapper: {
-    // Mirrors the webpack `@` alias so imports resolve the same way in tests.
-    "^@/(.*)$": "<rootDir>/src/$1",
+    // Asset stubs come FIRST: moduleNameMapper is first-match-wins, and a CSS
+    // or image imported via the `@/` alias must resolve to the stub, not be
+    // handed to Jest as a real file it cannot parse.
+    //
     // Jest cannot parse CSS. Components import stylesheets for their side
     // effect only, so mapping them to an empty stub is sufficient — we assert
     // on behaviour and semantics, never on computed styles.
@@ -36,6 +38,8 @@ module.exports = {
     // Likewise for image assets (e.g. Leaflet's marker icons): Jest cannot
     // parse a binary as a module, so it resolves to a stand-in URL string.
     "\\.(png|jpe?g|gif|svg|webp|ico)$": "<rootDir>/src/test/fileStub.js",
+    // Mirrors the webpack `@` alias so imports resolve the same way in tests.
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
 
   collectCoverageFrom: [

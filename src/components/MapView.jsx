@@ -6,6 +6,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+// After Leaflet's own CSS so the themed control chrome wins the cascade.
+import "@/styles/leaflet-theme.css";
 
 // Leaflet's default marker points at image files by relative URL, which a
 // bundler rewrites and breaks — the classic "markers are invisible" bug. Wiring
@@ -104,6 +106,12 @@ export function MapView({ camps, emptyMessage }) {
           // trap the scroll against.
           scrollWheelZoom
           className="h-full w-full"
+          // Leaflet's container defaults to a light grey, which shows as pale
+          // bands beyond the single (noWrap) world and clashes with the dark
+          // theme. Inline so it beats Leaflet's own CSS, and a theme token so it
+          // matches both themes' tiles. `background` (not a token class) because
+          // the element is Leaflet's, outside the Tailwind layer.
+          style={{ backgroundColor: "var(--background)" }}
         >
           <TileLayer
             // Keyed on the theme so it remounts with fresh tiles when the theme

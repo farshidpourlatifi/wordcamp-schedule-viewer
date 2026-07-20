@@ -1,0 +1,45 @@
+/*
+ * Theme Leaflet's control chrome to the app's tokens.
+ *
+ * Leaflet ships light-only controls — white zoom buttons, a white attribution
+ * strip — which clash on the dark map. These rules recolour them with the same
+ * CSS variables the rest of the app uses, so they follow light and dark
+ * automatically. Imported AFTER leaflet.css (see MapView) so it wins the
+ * cascade; the `.leaflet-touch` variants are listed to match Leaflet's own
+ * touch-device specificity.
+ */
+
+.leaflet-touch .leaflet-bar a,
+.leaflet-bar a {
+  background-color: var(--card);
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+
+.leaflet-touch .leaflet-bar a:hover,
+.leaflet-bar a:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.leaflet-bar a.leaflet-disabled {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.leaflet-touch .leaflet-bar,
+.leaflet-bar {
+  border-color: var(--border);
+}
+
+/* Leaflet scopes the attribution background under `.leaflet-container`, so
+   these must too (0,2,0) to win. */
+.leaflet-container .leaflet-control-attribution {
+  background-color: var(--background);
+  color: var(--muted-foreground);
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  /* --primary is a text accent in both themes (AA), which a link is. */
+  color: var(--primary);
+}
