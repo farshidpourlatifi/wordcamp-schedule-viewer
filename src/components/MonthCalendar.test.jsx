@@ -160,6 +160,45 @@ describe("MonthCalendar", () => {
     });
   });
 
+  describe("long-running programmes", () => {
+    // Real shape from the live feed: Campus Connect entries run for months,
+    // and 16% of dated records span 15+ days.
+    const programme = camp({
+      title: "WordPress Campus Connect Surat",
+      startDate: utc(2026, 3, 2),
+      endDate: utc(2026, 5, 31),
+    });
+
+    it("sits on its start day only, instead of carpeting the grid", () => {
+      renderCalendar({ camps: [programme], now: utc(2026, 3, 10) });
+
+      expect(
+        within(cellFor(2)).getByText(/WordPress Campus Connect Surat/),
+      ).toBeInTheDocument();
+      expect(within(cellFor(9)).queryByText(/Campus Connect/)).not.toBeInTheDocument();
+    });
+
+    it("says how long it runs, since the grid no longer shows it", () => {
+      renderCalendar({ camps: [programme], now: utc(2026, 3, 10) });
+
+      expect(
+        screen.getByRole("link", {
+          name: /WordPress Campus Connect Surat.*runs until Sun, 31 May 2026/,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it("leaves a conference-length camp expanded", () => {
+      renderCalendar({
+        camps: [camp({ startDate: utc(2026, 3, 4), endDate: utc(2026, 3, 6) })],
+        now: utc(2026, 3, 10),
+      });
+
+      expect(within(cellFor(5)).getByText(/WordCamp Rome/)).toBeInTheDocument();
+      expect(screen.queryByText(/runs until/)).not.toBeInTheDocument();
+    });
+  });
+
   describe("month navigation", () => {
     const across = [
       camp({ id: 1, startDate: utc(2026, 3, 14) }),

@@ -43,14 +43,23 @@ export const DAYS_PER_WEEK = 7;
 export const WEEKS_PER_GRID = 6;
 
 /**
- * Longest camp span the index will expand, in days.
+ * Longest span the index will expand across every day, in days.
  *
- * A real WordCamp runs one to three days. This cap means a single malformed
- * record — an end date years after its start, which the API has no schema to
- * prevent — costs that one camp its continuation chips instead of inflating
- * the day index with thousands of entries.
+ * Not an arbitrary guard. Measured against the live feed (91 dated records,
+ * 2026-07-20), spans fall into two populations:
+ *
+ *   conferences  1 day x44, 2 x28, 3 x3, 4 x1, 8 x1
+ *   programmes   15+ days x14, the longest running 149
+ *
+ * The long tail is not corrupt data — "WordPress Campus Connect" entries are
+ * multi-month campus programmes, not events you attend on a day. Expanding
+ * those across every day they cover carpets weeks of the grid with one
+ * repeated title and buries the single-day camps around them, so anything
+ * past a week is indexed on its start day alone and carries its end date
+ * instead. Seven days is the line because no conference in the feed runs
+ * longer than eight.
  */
-export const MAX_SPAN_DAYS = 14;
+export const MAX_EXPANDED_SPAN_DAYS = 7;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -151,7 +160,7 @@ export function buildMonthGrid(monthStart) {
 }
 
 /**
- * Number of days a camp occupies, clamped to something sane.
+ * Number of days a camp occupies, inclusive of both ends.
  *
  * A missing, invalid, or backwards end date degrades to a single day rather
  * than throwing — the same defensive posture `normalizeWordCamp` takes with
@@ -159,25 +168,43 @@ export function buildMonthGrid(monthStart) {
  *
  * @param {Date} start
  * @param {Date|null} end
- * @returns {number} At least 1, at most MAX_SPAN_DAYS.
+ * @returns {number} At least 1.
  */
-function spanInDays(start, end) {
-  if (!isValidDate(end)) return 1;
+export function campSpanDays(start, end) {
+  if (!isValidDate(start) || !isValidDate(end)) return 1;
 
   const days = Math.floor((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
 
-  return Math.min(Math.max(days, 1), MAX_SPAN_DAYS);
+  return Math.max(days, 1);
+}
+
+/**
+ * True for camps that run longer than a conference does.
+ *
+ * Shared by the index and the view so the two cannot disagree about which
+ * camps get expanded across the grid and which advertise their end date
+ * instead.
+ *
+ * @param {{startDate: Date|null, endDate: Date|null}} camp
+ * @returns {boolean}
+ */
+export function isLongRunning(camp) {
+  return campSpanDays(camp?.startDate, camp?.endDate) > MAX_EXPANDED_SPAN_DAYS;
 }
 
 /**
  * Index camps by the days they occupy.
  *
- * Multi-day camps are expanded across their whole span so the grid can answer
- * "what is happening on this day" honestly, which is the one question a
+ * Conference-length camps are expanded across their whole span so the grid
+ * can answer "what is happening on this day", which is the one question a
  * calendar exists to answer. Each entry carries `isStart` so the view can
  * render the start day as a link and the continuation days as quiet,
  * non-interactive chips — a camp then costs exactly one tab stop no matter
  * how long it runs.
+ *
+ * Long-running programmes (see MAX_EXPANDED_SPAN_DAYS) are indexed only on
+ * their start day. They are still fully present; the view shows their end
+ * date rather than repeating them down weeks of cells.
  *
  * Dateless camps are skipped: they have no cell to occupy. The caller
  * surfaces them separately so they are not silently dropped.
@@ -192,7 +219,9 @@ export function indexCampsByDay(camps) {
   for (const camp of camps) {
     if (!isValidDate(camp?.startDate)) continue;
 
-    const span = spanInDays(camp.startDate, camp.endDate);
+    const span = isLongRunning(camp)
+      ? 1
+      : campSpanDays(camp.startDate, camp.endDate);
 
     for (let offset = 0; offset < span; offset += 1) {
       const day = new Date(camp.startDate.getTime() + offset * MS_PER_DAY);

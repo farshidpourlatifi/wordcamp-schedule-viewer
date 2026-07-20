@@ -2,7 +2,9 @@ import {
   WEEKDAYS,
   DAYS_PER_WEEK,
   WEEKS_PER_GRID,
-  MAX_SPAN_DAYS,
+  MAX_EXPANDED_SPAN_DAYS,
+  campSpanDays,
+  isLongRunning,
   startOfUtcMonth,
   addUtcMonths,
   toDayKey,
@@ -201,13 +203,27 @@ describe("indexCampsByDay", () => {
     ]);
   });
 
-  it("caps an implausibly long span rather than inflating the index", () => {
-    // A malformed record: end date a decade after the start.
-    const malformed = camp(1, utc(2026, 3, 1), utc(2036, 3, 1));
+  it("expands a camp sitting exactly on the conference limit", () => {
+    const week = camp(
+      1,
+      utc(2026, 3, 1),
+      utc(2026, 3, MAX_EXPANDED_SPAN_DAYS),
+    );
 
-    const index = indexCampsByDay([malformed]);
+    expect(indexCampsByDay([week]).size).toBe(MAX_EXPANDED_SPAN_DAYS);
+  });
 
-    expect(index.size).toBe(MAX_SPAN_DAYS);
+  it("indexes a long-running programme on its start day alone", () => {
+    // Real shape: "WordPress Campus Connect Rajshahi" ran 149 days. Expanding
+    // that would carpet five months of the grid with one repeated title.
+    const programme = camp(1, utc(2025, 12, 11), utc(2026, 5, 8));
+
+    const index = indexCampsByDay([programme]);
+
+    expect(index.size).toBe(1);
+    expect(index.get("2025-12-11")).toEqual([
+      { camp: programme, isStart: true },
+    ]);
   });
 
   it("treats a backwards end date as a single day", () => {
@@ -246,6 +262,68 @@ describe("indexCampsByDay", () => {
 
   it("returns an empty index for a non-array", () => {
     expect(indexCampsByDay(undefined).size).toBe(0);
+  });
+});
+
+describe("campSpanDays", () => {
+  it("counts a single day inclusively", () => {
+    expect(campSpanDays(utc(2026, 3, 14), utc(2026, 3, 14))).toBe(1);
+  });
+
+  it("counts both ends of a multi-day span", () => {
+    expect(campSpanDays(utc(2026, 6, 4), utc(2026, 6, 6))).toBe(3);
+  });
+
+  it("spans months and years", () => {
+    expect(campSpanDays(utc(2025, 12, 11), utc(2026, 5, 8))).toBe(149);
+  });
+
+  it("degrades to one day without a usable end", () => {
+    expect(campSpanDays(utc(2026, 3, 14), null)).toBe(1);
+    expect(campSpanDays(utc(2026, 3, 14), new Date("nonsense"))).toBe(1);
+    expect(campSpanDays(utc(2026, 3, 14), utc(2026, 3, 1))).toBe(1);
+  });
+});
+
+describe("isLongRunning", () => {
+  it("is false for a conference", () => {
+    expect(
+      isLongRunning({ startDate: utc(2026, 6, 4), endDate: utc(2026, 6, 6) }),
+    ).toBe(false);
+  });
+
+  it("is false exactly on the limit", () => {
+    expect(
+      isLongRunning({
+        startDate: utc(2026, 6, 1),
+        endDate: utc(2026, 6, MAX_EXPANDED_SPAN_DAYS),
+      }),
+    ).toBe(false);
+  });
+
+  it("is true one day past the limit", () => {
+    expect(
+      isLongRunning({
+        startDate: utc(2026, 6, 1),
+        endDate: utc(2026, 6, MAX_EXPANDED_SPAN_DAYS + 1),
+      }),
+    ).toBe(true);
+  });
+
+  it("is true for a months-long programme", () => {
+    expect(
+      isLongRunning({ startDate: utc(2026, 8, 1), endDate: utc(2026, 10, 31) }),
+    ).toBe(true);
+  });
+
+  it("is false for a camp with no end date", () => {
+    expect(isLongRunning({ startDate: utc(2026, 3, 14), endDate: null })).toBe(
+      false,
+    );
+  });
+
+  it("tolerates a missing camp", () => {
+    expect(isLongRunning(undefined)).toBe(false);
   });
 });
 

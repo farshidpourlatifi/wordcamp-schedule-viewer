@@ -7,6 +7,7 @@ import {
   addUtcMonths,
   buildMonthGrid,
   indexCampsByDay,
+  isLongRunning,
   monthBounds,
   startOfUtcMonth,
   toDayKey,
@@ -234,14 +235,28 @@ function CampChip({ camp, isStart }) {
     );
   }
 
+  // A programme that runs for months is not expanded across the grid, so its
+  // duration would otherwise be invisible here. The tooltip and the
+  // accessible name carry it; the chip itself has no room.
+  const runsUntil = isLongRunning(camp)
+    ? ` — runs until ${formatCampDate(camp.endDate)}`
+    : "";
+  const label = `${camp.title}${runsUntil}`;
+
   // secondary, never primary: dark-mode --primary is a text accent and fails
   // AA as a fill behind primary-foreground.
   const chip = cn(base, "bg-secondary text-secondary-foreground");
+  const content = (
+    <>
+      {camp.title}
+      {runsUntil && <span className="sr-only">{runsUntil}</span>}
+    </>
+  );
 
   if (!camp.url) {
     return (
-      <span className={chip} title={camp.title}>
-        {camp.title}
+      <span className={chip} title={label}>
+        {content}
       </span>
     );
   }
@@ -251,10 +266,10 @@ function CampChip({ camp, isStart }) {
       href={camp.url}
       target="_blank"
       rel="noopener noreferrer"
-      title={camp.title}
+      title={label}
       className={cn(chip, "hover:bg-accent hover:text-accent-foreground")}
     >
-      {camp.title}
+      {content}
     </a>
   );
 }
