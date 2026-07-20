@@ -13,8 +13,9 @@ import { DAYS_PER_WEEK, WEEKS_PER_GRID } from "@/utils/calendarGrid";
  * large share of the app's real-world appearance.
  */
 
-/** Skeleton cards shown while the first load is in flight. */
-const SKELETON_CARD_COUNT = 6;
+/** Month sections the list skeleton mocks, and cards per section. */
+const SKELETON_SECTIONS = 2;
+const SKELETON_CARDS_PER_SECTION = 6;
 
 /**
  * A small spinning indicator for a load that runs while content is already on
@@ -51,57 +52,104 @@ export function Spinner({ className }) {
  * several times taller, so everything below it jumped when the data arrived.
  * The map is taller still, so it reserves its own frame.
  *
+ * The filter row and view chrome are reserved for every variant, and the
+ * variant content matches the real view's geometry, so nothing appears or
+ * grows when the data lands — the whole point is to hold the layout still and
+ * keep CLS near zero.
+ *
  * @param {Object} props
  * @param {boolean} [props.calendar] Reserve the month grid's shape.
  * @param {boolean} [props.map] Reserve the map's frame.
  */
 export function LoadingState({ calendar = false, map = false }) {
-  if (calendar) return <CalendarSkeleton />;
-  if (map) return <MapSkeleton />;
-
   return (
     <div role="status" aria-live="polite">
       <span className="sr-only">Loading WordCamps…</span>
 
-      <Skeleton className="mb-3 h-4 w-32" />
+      <ChromeSkeleton withTabs={!calendar} />
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-        {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
-          <Card key={index} className="flex flex-col gap-2">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-3 w-20" />
-          </Card>
-        ))}
-      </div>
+      {calendar ? (
+        <CalendarGridSkeleton />
+      ) : map ? (
+        <MapFrameSkeleton />
+      ) : (
+        <ListSkeleton />
+      )}
     </div>
   );
 }
 
 /**
- * Loading placeholder shaped like the map: one tall framed block matching
- * MapView's `h-[70vh]` container, so the map drops into space already held.
+ * Reserves the filter row and the tab/toggle row above the content, so they do
+ * not appear-and-push when the loaded chrome renders.
+ *
+ * @param {Object} props
+ * @param {boolean} props.withTabs Include the upcoming/past tab placeholder
+ *   (list and map); the calendar has only the view toggle.
  */
-function MapSkeleton() {
+function ChromeSkeleton({ withTabs }) {
   return (
-    <div role="status" aria-live="polite">
-      <span className="sr-only">Loading WordCamps…</span>
-      <Skeleton className="h-[70vh] min-h-80 w-full rounded-lg" />
+    <>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <Skeleton className="h-10 min-w-48 flex-1" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {withTabs ? <Skeleton className="h-9 w-48 rounded-full" /> : <span />}
+        <Skeleton className="h-9 w-64 rounded-full" />
+      </div>
+    </>
+  );
+}
+
+/**
+ * List content placeholder.
+ *
+ * min-h-screen is for layout stability, not looks: the real list runs taller
+ * than a viewport, so a short skeleton would leave the footer high on screen
+ * and then drop it ~2,000px when the data lands — a large shift. Reserving a
+ * screen keeps the footer below the fold across the swap.
+ */
+function ListSkeleton() {
+  return (
+    <div className="min-h-screen">
+      {Array.from({ length: SKELETON_SECTIONS }, (_, section) => (
+        <section key={section} className="mb-8">
+          <Skeleton className="mb-3 h-4 w-32" />
+
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+            {Array.from({ length: SKELETON_CARDS_PER_SECTION }, (_, index) => (
+              <Card key={index} className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-20" />
+              </Card>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
 
 /**
- * Loading placeholder shaped like the month grid.
+ * Map content placeholder: one tall framed block matching MapView's `h-[70vh]`
+ * container, so the map drops into space already held.
+ */
+function MapFrameSkeleton() {
+  return <Skeleton className="h-[70vh] min-h-80 w-full rounded-lg" />;
+}
+
+/**
+ * Month-grid content placeholder.
  *
  * Reserves the real table's geometry — nav row, seven columns, six rows of
  * `h-24` cells — so the calendar drops into space already held for it.
  */
-function CalendarSkeleton() {
+function CalendarGridSkeleton() {
   return (
-    <div role="status" aria-live="polite">
-      <span className="sr-only">Loading WordCamps…</span>
-
+    <>
       <div className="mb-4 flex items-center justify-between gap-4">
         <Skeleton className="h-9 w-9" />
         <Skeleton className="h-6 w-40" />
@@ -138,7 +186,7 @@ function CalendarSkeleton() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
