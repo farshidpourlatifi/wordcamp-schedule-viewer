@@ -22,10 +22,9 @@ import {
  * only the network is faked. These are the tests that would catch a wiring
  * mistake no unit test can see.
  *
- * The calendar opens on the real current month, so month-specific behaviour
- * (today's marker, navigation, clamping) is asserted in MonthCalendar's own
- * suite where the clock is injected. Here the calendar is checked for being
- * wired up at all, which is what cannot rot.
+ * The calendar opens on the real current month, so month-specific behaviour is
+ * asserted in MonthCalendar's own suite where the clock is injected. Here the
+ * calendar is checked for being wired up at all, which is what cannot rot.
  */
 
 /** 2099 and 2001: far enough either side of any real "today" to be stable. */
@@ -43,21 +42,43 @@ const RECORDS = [
   }),
   apiRecord({
     id: 2,
-    title: "WordCamp History",
+    title: "WordCamp History Osaka",
     startSeconds: PAST_SECONDS,
     location: "Osaka, Japan",
     countryCode: "JP",
   }),
 ];
 
+/** Which side of "now" a raw record falls on (mirrors the real partition). */
+const isUpcoming = (record) =>
+  Number(record["Start Date (YYYY-mm-dd)"]) * 1000 >= Date.now();
+
+/** The records a given status query should return; the count query gets all. */
+const bodyForStatus = (status, records) => {
+  if (status === "wcpt-scheduled") return records.filter(isUpcoming);
+  if (status === "wcpt-closed") return records.filter((r) => !isUpcoming(r));
+  return records;
+};
+
+/**
+ * Status-aware fetch mock: scheduled and closed return disjoint sides, and the
+ * count query (no status) reports the full total through the header.
+ */
+const mockCamps = (records) => {
+  global.fetch = jest.fn((url) =>
+    Promise.resolve(
+      apiResponse(bodyForStatus(new URL(url).searchParams.get("status"), records)),
+    ),
+  );
+};
+
 const mockFetch = (impl) => {
   global.fetch = jest.fn(impl);
 };
 
-/** Start in the list view, where the upcoming/past tabs live. */
-const renderInListView = () => {
-  localStorage.setItem("schedule-view", "list");
-
+/** Land the app on a specific view via the stored preference. */
+const renderInView = (view) => {
+  localStorage.setItem("schedule-view", view);
   return renderWithQuery(<App />);
 };
 
@@ -90,22 +111,23 @@ describe("App", () => {
     // The underlying reason is shown too — that is what makes a bug report
     // actionable, where a friendly sentence alone would not.
     expect(alert).toHaveTextContent("HTTP 503");
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
   it("recovers when a retry succeeds", async () => {
     const user = userEvent.setup();
-    let attempt = 0;
-    mockFetch(async () => {
-      attempt += 1;
-      return attempt === 1
-        ? {
-            ok: false,
-            status: 500,
-            headers: { get: () => null },
-            json: async () => null,
-          }
-        : apiResponse(RECORDS);
+    let failScheduled = true;
+    global.fetch = jest.fn((url) => {
+      const status = new URL(url).searchParams.get("status");
+      if (status === "wcpt-scheduled" && failScheduled) {
+        failScheduled = false;
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          headers: { get: () => null },
+          json: async () => null,
+        });
+      }
+      return Promise.resolve(apiResponse(bodyForStatus(status, RECORDS)));
     });
 
     renderWithQuery(<App />);
@@ -113,22 +135,26 @@ describe("App", () => {
       within(await screen.findByRole("alert")).getByRole("button"),
     );
 
-    expect(await screen.findByRole("table", { name: /WordCamps in/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("tab", { name: /Upcoming/ }),
+    ).toBeInTheDocument();
   });
 
   it("shows an empty message when the API returns nothing", async () => {
-    mockFetch(async () => apiResponse([]));
+    mockCamps([]);
 
     renderWithQuery(<App />);
 
-    expect(await screen.findByText("No WordCamps found.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("No upcoming WordCamps found."),
+    ).toBeInTheDocument();
   });
 
   it("renders one h1 inside a main landmark", async () => {
-    mockFetch(async () => apiResponse(RECORDS));
+    mockCamps(RECORDS);
 
     renderWithQuery(<App />);
-    await screen.findByRole("table", { name: /WordCamps in/ });
+    await screen.findByRole("tab", { name: /Upcoming/ });
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("main")).toBeInTheDocument();
@@ -136,119 +162,58 @@ describe("App", () => {
     expect(screen.getByRole("contentinfo")).toBeInTheDocument();
   });
 
-  describe("calendar view", () => {
-    it("is what the app opens on, being the required primary view", async () => {
-      mockFetch(async () => apiResponse(RECORDS));
+  describe("list view (the default)", () => {
+    it("opens on the list, whose upcoming tab needs only the fast feed", async () => {
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
 
-      expect(
-        await screen.findByRole("table", { name: /WordCamps in/ }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Calendar" })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-    });
-
-    it("carries no upcoming/past tabs", async () => {
-      mockFetch(async () => apiResponse(RECORDS));
-
-      renderWithQuery(<App />);
-      await screen.findByRole("table", { name: /WordCamps in/ });
-
-      // A calendar is continuous time and already marks today; splitting it in
-      // two would render the same month twice with different subsets.
-      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-    });
-
-    it("draws on the whole timeline, not one side of today", async () => {
-      mockFetch(async () => apiResponse(RECORDS));
-
-      renderWithQuery(<App />);
-      await screen.findByRole("table", { name: /WordCamps in/ });
-
-      // Both camps are decades from the opening month, so neither shows yet —
-      // but navigation reaches both, which the clamped bounds prove.
-      expect(
-        screen.getByRole("button", { name: "Previous month" }),
-      ).toBeEnabled();
-      expect(screen.getByRole("button", { name: "Next month" })).toBeEnabled();
-    });
-  });
-
-  describe("list view", () => {
-    it("shows upcoming camps by default once loaded", async () => {
-      mockFetch(async () => apiResponse(RECORDS));
-
-      renderInListView();
-
-      // Title is entity-decoded end to end — proof the normalizer is wired in.
       expect(
         await screen.findByRole("link", { name: "WordCamp Future – Rome" }),
       ).toBeInTheDocument();
-      expect(screen.queryByText("WordCamp History")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "List" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(screen.queryByText("WordCamp History Osaka")).not.toBeInTheDocument();
     });
 
-    it("labels each tab with its count", async () => {
-      mockFetch(async () => apiResponse(RECORDS));
+    it("labels each tab with its count, the past one from the header", async () => {
+      mockCamps(RECORDS);
 
-      renderInListView();
+      renderWithQuery(<App />);
 
+      // Past (1) comes from the total header (2) minus upcoming (1) — no past
+      // records have been loaded yet.
       expect(
         await screen.findByRole("tab", { name: "Upcoming (1)" }),
       ).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Past (1)" })).toBeInTheDocument();
     });
 
-    it("shows past camps after switching tabs", async () => {
+    it("loads the archive and shows past camps when the Past tab opens", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
-      renderInListView();
+      renderWithQuery(<App />);
       await user.click(await screen.findByRole("tab", { name: /Past/ }));
 
-      expect(await screen.findByText("WordCamp History")).toBeInTheDocument();
       expect(
-        screen.queryByText("WordCamp Future – Rome"),
+        await screen.findByText("WordCamp History Osaka"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: "WordCamp Future – Rome" }),
       ).not.toBeInTheDocument();
     });
 
-    it("marks the selected tab for assistive technology", async () => {
-      const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
-
-      renderInListView();
-      const pastTab = await screen.findByRole("tab", { name: /Past/ });
-
-      expect(screen.getByRole("tab", { name: /Upcoming/ })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      );
-
-      await user.click(pastTab);
-
-      expect(pastTab).toHaveAttribute("aria-selected", "true");
-    });
-
     it("switches tabs with the keyboard, using manual activation", async () => {
-      // Base UI supplies arrow-key navigation; this asserts it survived the
-      // styling wrapper rather than trusting the library blindly.
-      //
-      // Manual activation (the Base UI default) is kept deliberately: arrow
-      // keys move focus, Enter/Space activates. With automatic activation,
-      // arrowing across the tabs would render the Past panel — twelve month
-      // sections of cards — just to pass over it.
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
-      renderInListView();
+      renderWithQuery(<App />);
       const upcomingTab = await screen.findByRole("tab", { name: /Upcoming/ });
       const pastTab = screen.getByRole("tab", { name: /Past/ });
 
-      // Focus via user-event rather than a raw .focus() call: the raw call
-      // triggers a Base UI state update outside act() and logs a warning.
-      // Upcoming is already selected, so clicking it changes focus, not state.
       await user.click(upcomingTab);
       await user.keyboard("{ArrowRight}");
 
@@ -258,89 +223,121 @@ describe("App", () => {
       await user.keyboard("{Enter}");
 
       expect(pastTab).toHaveAttribute("aria-selected", "true");
-      expect(await screen.findByText("WordCamp History")).toBeInTheDocument();
+      expect(
+        await screen.findByText("WordCamp History Osaka"),
+      ).toBeInTheDocument();
     });
 
-    it("fetches the two feeds for the whole page, not once per tab", async () => {
+    it("loads the scheduled feed eagerly and the archive only on demand", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
-      renderInListView();
-      await user.click(await screen.findByRole("tab", { name: /Past/ }));
+      renderWithQuery(<App />);
+      await screen.findByRole("tab", { name: /Upcoming/ });
+
+      // Count + scheduled up front; the closed archive is untouched.
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+
+      await user.click(screen.getByRole("tab", { name: /Past/ }));
+
+      // Opening Past pulls the archive in — once.
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
       await user.click(screen.getByRole("tab", { name: /Upcoming/ }));
+      await user.click(screen.getByRole("tab", { name: /Past/ }));
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+  });
 
-      // Scheduled + archive, and switching tabs adds nothing.
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+  describe("calendar view", () => {
+    it("renders a real table and pulls the archive it needs", async () => {
+      mockCamps(RECORDS);
+
+      renderInView("calendar");
+
+      // The calendar shows the whole timeline, so it requests the past archive
+      // on mount; the table labels itself by the month on show.
+      expect(
+        await screen.findByRole("table", { name: /WordCamps in/ }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Calendar" }),
+      ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("carries no upcoming/past tabs", async () => {
+      mockCamps(RECORDS);
+
+      renderInView("calendar");
+      await screen.findByRole("table", { name: /WordCamps in/ });
+
+      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    });
+
+    it("reaches both sides of today once the archive is in", async () => {
+      mockCamps(RECORDS);
+
+      renderInView("calendar");
+      await screen.findByRole("table", { name: /WordCamps in/ });
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "Previous month" }),
+        ).toBeEnabled(),
+      );
+      expect(screen.getByRole("button", { name: "Next month" })).toBeEnabled();
     });
   });
 
   describe("view switching", () => {
-    it("swaps the calendar for the month-section list", async () => {
+    it("swaps the list for the calendar and drops the tabs", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
-      await user.click(await screen.findByRole("button", { name: "List" }));
+      await user.click(await screen.findByRole("button", { name: "Calendar" }));
 
-      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { level: 2, name: "March 2099" }),
+        await screen.findByRole("table", { name: /WordCamps in/ }),
       ).toBeInTheDocument();
     });
 
     it("brings the tabs back with the list", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
-      renderWithQuery(<App />);
+      renderInView("calendar");
       await user.click(await screen.findByRole("button", { name: "List" }));
 
       expect(screen.getByRole("tab", { name: /Upcoming/ })).toBeInTheDocument();
     });
 
-    it("returns to the calendar, dropping the tabs again", async () => {
-      const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
-
-      renderWithQuery(<App />);
-      await user.click(await screen.findByRole("button", { name: "List" }));
-      await user.click(screen.getByRole("button", { name: "Calendar" }));
-
-      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("table", { name: /WordCamps in/ }),
-      ).toBeInTheDocument();
-    });
-
     it("remembers the view for the next visit", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
-      await user.click(await screen.findByRole("button", { name: "List" }));
+      await user.click(await screen.findByRole("button", { name: "Calendar" }));
 
-      expect(localStorage.getItem("schedule-view")).toBe("list");
+      expect(localStorage.getItem("schedule-view")).toBe("calendar");
     });
 
-    it("shows the map, under the same tabs as the list", async () => {
+    it("shows the map under the same tabs as the list", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
       await user.click(await screen.findByRole("button", { name: "Map" }));
 
       // The map is lazily loaded, so it arrives asynchronously.
       expect(await screen.findByTestId("map-view")).toBeInTheDocument();
-      // One upcoming camp on the default tab.
       expect(screen.getByTestId("map-view")).toHaveTextContent("1 on the map");
-      // And it filters through the same tabs.
       expect(screen.getByRole("tab", { name: /Upcoming/ })).toBeInTheDocument();
-      expect(screen.queryByRole("table")).not.toBeInTheDocument();
     });
 
-    it("re-filters the map when the tab changes", async () => {
+    it("feeds the map's past tab from the loaded archive", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
       await user.click(await screen.findByRole("button", { name: "Map" }));
@@ -348,33 +345,35 @@ describe("App", () => {
 
       await user.click(screen.getByRole("tab", { name: /Past/ }));
 
-      // The past tab feeds its one camp to the same map.
       expect(await screen.findByTestId("map-view")).toHaveTextContent(
         "1 on the map",
       );
     });
   });
 
-  describe("progressive loading", () => {
-    it("notes the archive is still loading, then clears it", async () => {
+  describe("lazy archive", () => {
+    it("notes the archive is loading, then clears it, on the calendar", async () => {
       let releaseArchive;
       const archiveReady = new Promise((resolve) => {
         releaseArchive = resolve;
       });
 
-      // Scheduled feed answers at once; the full archive is held pending.
       global.fetch = jest.fn((url) => {
-        const isScheduled =
-          new URL(url).searchParams.get("status") === "wcpt-scheduled";
-        return isScheduled
-          ? Promise.resolve(apiResponse(RECORDS))
-          : archiveReady.then(() => apiResponse(RECORDS));
+        const status = new URL(url).searchParams.get("status");
+        if (status === "wcpt-closed") {
+          return archiveReady.then(() =>
+            apiResponse(bodyForStatus(status, RECORDS)),
+          );
+        }
+        return Promise.resolve(apiResponse(bodyForStatus(status, RECORDS)));
       });
 
-      renderWithQuery(<App />);
+      // The calendar requests the archive on mount.
+      renderInView("calendar");
 
-      // Upcoming is already usable while the archive streams.
-      expect(await screen.findByText("Loading the full archive…")).toBeInTheDocument();
+      expect(
+        await screen.findByText("Loading the full archive…"),
+      ).toBeInTheDocument();
 
       releaseArchive();
 
@@ -384,13 +383,24 @@ describe("App", () => {
         ).not.toBeInTheDocument(),
       );
     });
+
+    it("does not fetch the archive until something needs it", async () => {
+      mockCamps(RECORDS);
+
+      renderWithQuery(<App />);
+      await screen.findByRole("tab", { name: /Upcoming/ });
+
+      // Only count + scheduled — no wcpt-closed request has gone out.
+      const statuses = global.fetch.mock.calls.map(
+        ([url]) => new URL(url).searchParams.get("status"),
+      );
+      expect(statuses).not.toContain("wcpt-closed");
+    });
   });
 
   describe("filters", () => {
-    afterEach(() => localStorage.clear());
-
-    it("shows the total count once loaded", async () => {
-      mockFetch(async () => apiResponse(RECORDS));
+    it("shows the total from the header", async () => {
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
 
@@ -399,7 +409,7 @@ describe("App", () => {
 
     it("narrows the result count as you search", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
       await user.type(await screen.findByRole("searchbox"), "rome");
@@ -409,21 +419,20 @@ describe("App", () => {
 
     it("filters the visible list by search", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
-      renderInListView();
+      renderWithQuery(<App />);
       await user.type(await screen.findByRole("searchbox"), "rome");
 
       expect(
         screen.getByRole("link", { name: "WordCamp Future – Rome" }),
       ).toBeInTheDocument();
-      // The tab count follows the filter down to one match.
       expect(screen.getByRole("tab", { name: "Upcoming (1)" })).toBeInTheDocument();
     });
 
-    it("filters by region using the derived continent", async () => {
+    it("filters by region, loading the archive to reach past events", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
       renderWithQuery(<App />);
       await user.selectOptions(
@@ -431,15 +440,16 @@ describe("App", () => {
         "Asia",
       );
 
-      // Only Osaka (JP → Asia) matches; Rome (IT → Europe) is excluded.
+      // Osaka (JP → Asia) is a past event, so selecting Asia must pull the
+      // archive in and then match it.
       expect(await screen.findByText("1 of 2 events")).toBeInTheDocument();
     });
 
     it("says so when a filter matches nothing", async () => {
       const user = userEvent.setup();
-      mockFetch(async () => apiResponse(RECORDS));
+      mockCamps(RECORDS);
 
-      renderInListView();
+      renderWithQuery(<App />);
       await user.type(await screen.findByRole("searchbox"), "nairobi");
 
       expect(

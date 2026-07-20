@@ -65,14 +65,14 @@ describe("ViewToggle", () => {
 });
 
 describe("readStoredView", () => {
-  it("defaults to the calendar, the required primary view", () => {
-    expect(readStoredView()).toBe(VIEW_CALENDAR);
+  it("defaults to the list, whose upcoming tab needs only the fast feed", () => {
+    expect(readStoredView()).toBe(VIEW_LIST);
   });
 
-  it("returns a stored list preference", () => {
-    localStorage.setItem("schedule-view", VIEW_LIST);
+  it("returns a stored calendar preference", () => {
+    localStorage.setItem("schedule-view", VIEW_CALENDAR);
 
-    expect(readStoredView()).toBe(VIEW_LIST);
+    expect(readStoredView()).toBe(VIEW_CALENDAR);
   });
 
   it("returns a stored map preference", () => {
@@ -84,7 +84,7 @@ describe("readStoredView", () => {
   it("falls back when the stored value is unrecognized", () => {
     localStorage.setItem("schedule-view", "gallery");
 
-    expect(readStoredView()).toBe(VIEW_CALENDAR);
+    expect(readStoredView()).toBe(VIEW_LIST);
   });
 
   it("falls back when storage throws", () => {
@@ -92,7 +92,7 @@ describe("readStoredView", () => {
       throw new Error("blocked");
     });
 
-    expect(readStoredView()).toBe(VIEW_CALENDAR);
+    expect(readStoredView()).toBe(VIEW_LIST);
   });
 });
 

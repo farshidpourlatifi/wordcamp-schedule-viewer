@@ -1,7 +1,12 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchWordCamps, SCHEDULED_STATUS } from "@/api/wordcamps";
+import {
+  fetchWordCamps,
+  fetchWordCampCount,
+  SCHEDULED_STATUS,
+  CLOSED_STATUS,
+} from "@/api/wordcamps";
 import { normalizeWordCamps } from "@/utils/normalizeWordCamp";
 import { partitionByDate } from "@/utils/partitionByDate";
 
@@ -13,11 +18,18 @@ import { partitionByDate } from "@/utils/partitionByDate";
  * `fetchImpl` and `now` are injectable, which is what lets the tests run the
  * full path with no network and a frozen clock.
  *
- * Two queries, not one. The scheduled feed (`?status=wcpt-scheduled`) is ~40
- * records in a single request and drives the first paint; the full archive is
- * ~1,500 records across 15 requests and streams in behind it. Until the archive
- * lands the app already shows upcoming events instead of a blank spinner, and
- * `isArchiveLoading` lets past-heavy views say the rest is still coming.
+ * Loading is lazy, not eager. The scheduled feed (`?status=wcpt-scheduled`) is
+ * ~40 records in one request and loads immediately — enough for the default
+ * list's Upcoming tab. The past archive (`?status=wcpt-closed`) is ~1,441
+ * records across ~15 requests (~4 MB) and loads only when something actually
+ * needs it: the Past tab, the calendar, the map's past side, or a search.
+ * `requestArchive` triggers it. The grand total comes from the `X-WP-Total`
+ * header via a one-record count request, so the UI can show "1,481 events"
+ * before the archive is anywhere near loaded.
+ *
+ * The API offers no other lever: the event date and venue location are meta
+ * fields it will not filter or sort by, so a slice can't be fetched per view —
+ * status is the only axis, and it splits the feed exactly into these two.
  */
 
 /** Cache key root; each query namespaces under it. */
@@ -32,12 +44,21 @@ const EMPTY = [];
  * @param {Date} [options.now] Injectable clock. Omit in app code — passing an
  *   inline `new Date()` would change identity every render and re-partition
  *   the whole list each time.
- * @returns {{camps: Array, upcoming: Array, past: Array, isLoading: boolean,
- *   isArchiveLoading: boolean, isError: boolean, error: Error|null,
- *   refetch: Function}} `camps` is the whole list; `upcoming`/`past` are it
- *   split around `now`.
+ * @returns {{camps: Array, upcoming: Array, past: Array, totalCount: number,
+ *   isLoading: boolean, isArchiveLoading: boolean, isArchiveLoaded: boolean,
+ *   requestArchive: Function, isError: boolean, error: Error|null,
+ *   refetch: Function}}
  */
 export function useWordCamps({ fetchImpl, now } = {}) {
+  // The past archive is loaded on demand; this flips once and stays on.
+  const [archiveRequested, setArchiveRequested] = useState(false);
+  const requestArchive = useCallback(() => setArchiveRequested(true), []);
+
+  const count = useQuery({
+    queryKey: [...WORDCAMPS_QUERY_KEY, "count"],
+    queryFn: ({ signal }) => fetchWordCampCount({ fetchImpl, signal }),
+  });
+
   const scheduled = useQuery({
     queryKey: [...WORDCAMPS_QUERY_KEY, "scheduled"],
     // TanStack Query supplies an AbortSignal; forwarding it means an unmount
@@ -47,40 +68,47 @@ export function useWordCamps({ fetchImpl, now } = {}) {
   });
 
   const archive = useQuery({
-    queryKey: [...WORDCAMPS_QUERY_KEY, "all"],
-    queryFn: ({ signal }) => fetchWordCamps({ fetchImpl, signal }),
+    queryKey: [...WORDCAMPS_QUERY_KEY, "closed"],
+    queryFn: ({ signal }) =>
+      fetchWordCamps({ fetchImpl, signal, status: CLOSED_STATUS }),
+    enabled: archiveRequested,
   });
 
-  // Prefer the complete archive once it arrives; show the fast scheduled feed
-  // in the meantime so the first paint is not gated on 15 requests.
-  const data = archive.data ?? scheduled.data;
-
-  // Normalizing and partitioning ~1,500 records is not free, and it does not
-  // depend on anything that changes between renders. Memoizing also keeps the
-  // returned array identities stable, so the calendar view can memoize too.
+  // Combine whatever has loaded. Scheduled is always present after first paint;
+  // the closed archive joins it once requested and resolved. Partitioning the
+  // combined set by date keeps the upcoming/past split date-accurate rather
+  // than trusting the status labels at the boundary.
+  const scheduledData = scheduled.data;
+  const archiveData = archive.data;
   const { camps, upcoming, past } = useMemo(() => {
-    if (!data) return { camps: EMPTY, upcoming: EMPTY, past: EMPTY };
+    if (!scheduledData) return { camps: EMPTY, upcoming: EMPTY, past: EMPTY };
 
-    // The calendar wants one continuous timeline, the list wants the split —
-    // both come off a single normalize pass rather than doing it twice.
-    const normalized = normalizeWordCamps(data);
+    const normalized = normalizeWordCamps([
+      ...scheduledData,
+      ...(archiveData ?? []),
+    ]);
 
     return { camps: normalized, ...partitionByDate(normalized, now) };
-  }, [data, now]);
+  }, [scheduledData, archiveData, now]);
 
   return {
     camps,
     upcoming,
     past,
-    // First paint is gated on the fast query only.
+    // Header count when available, else what has actually loaded.
+    totalCount: count.data ?? camps.length,
+    // First paint is gated on the fast scheduled feed only.
     isLoading: scheduled.isPending,
-    // The archive is still streaming; past-heavy views can note it.
-    isArchiveLoading: archive.isPending,
+    // The archive was requested and is still in flight.
+    isArchiveLoading: archiveRequested && archive.isPending,
+    isArchiveLoaded: archive.isSuccess,
+    requestArchive,
     isError: scheduled.isError,
     error: scheduled.error,
     refetch: () => {
+      count.refetch();
       scheduled.refetch();
-      archive.refetch();
+      if (archiveRequested) archive.refetch();
     },
   };
 }

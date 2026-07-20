@@ -32,7 +32,12 @@ export function apiResponse(records) {
   return {
     ok: true,
     status: 200,
-    headers: { get: () => "1" },
+    headers: {
+      get: (name) =>
+        // X-WP-Total is the collection size the count query reads; everything
+        // else (X-WP-TotalPages) is a single page for these fixtures.
+        name.toLowerCase() === "x-wp-total" ? String(records.length) : "1",
+    },
     json: async () => records,
   };
 }

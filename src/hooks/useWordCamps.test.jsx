@@ -135,47 +135,38 @@ describe("useWordCamps", () => {
     expect(fetchImpl.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("shows upcoming from the scheduled feed while the archive still loads", async () => {
-    // The scheduled feed answers instantly with the upcoming camp; the full
-    // archive is held pending, so the app is usable before it lands.
-    let releaseArchive;
-    const archiveReady = new Promise((resolve) => {
-      releaseArchive = resolve;
-    });
-
+  it("loads the past archive only when requested", async () => {
+    const statusOf = (url) => new URL(url).searchParams.get("status");
     const fetchImpl = jest.fn((url) => {
-      const isScheduled =
-        new URL(url).searchParams.get("status") === "wcpt-scheduled";
-
-      if (isScheduled) {
+      const status = statusOf(url);
+      if (status === "wcpt-scheduled") {
         return Promise.resolve(response([record(1, "Future Camp", "1788220800")]));
       }
-      return archiveReady.then(() =>
-        response([
-          record(1, "Future Camp", "1788220800"),
-          record(2, "Past Camp", "1768435200"),
-        ]),
-      );
+      if (status === "wcpt-closed") {
+        return Promise.resolve(response([record(2, "Past Camp", "1768435200")]));
+      }
+      return Promise.resolve(response([])); // count query
     });
 
     const { result } = renderUseWordCamps({ fetchImpl });
-
-    // First paint: scheduled resolved, upcoming shown, archive still coming.
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.isArchiveLoading).toBe(true);
+
+    // Upcoming is there; the past archive has not been touched.
     expect(result.current.upcoming.map((c) => c.title)).toEqual(["Future Camp"]);
     expect(result.current.past).toEqual([]);
+    expect(result.current.isArchiveLoaded).toBe(false);
+    const requestedStatuses = () =>
+      fetchImpl.mock.calls.map(([url]) => statusOf(url));
+    expect(requestedStatuses()).not.toContain("wcpt-closed");
 
-    // Archive lands: past fills in.
-    await act(async () => {
-      releaseArchive();
-      await archiveReady;
-    });
-    await waitFor(() => expect(result.current.isArchiveLoading).toBe(false));
+    // Request it → the closed feed loads → past fills in.
+    act(() => result.current.requestArchive());
+    await waitFor(() => expect(result.current.isArchiveLoaded).toBe(true));
     expect(result.current.past.map((c) => c.title)).toEqual(["Past Camp"]);
+    expect(requestedStatuses()).toContain("wcpt-closed");
   });
 
-  it("fetches each feed once per mount, not once per render", async () => {
+  it("fetches the eager feeds once per mount, not once per render", async () => {
     const fetchImpl = jest.fn(async () => response([]));
 
     const { result, rerender } = renderUseWordCamps({ fetchImpl });
@@ -183,8 +174,8 @@ describe("useWordCamps", () => {
     rerender();
     rerender();
 
-    // Two feeds — scheduled and the full archive — each fetched once, and
-    // re-rendering adds none.
+    // Count + scheduled up front (the archive is lazy), and re-rendering adds
+    // none.
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -202,7 +193,7 @@ describe("useWordCamps", () => {
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      // Scheduled feed + full archive.
+      // Count + scheduled; the archive stays lazy.
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(result.current.isError).toBe(false);
       expect(result.current.upcoming).toEqual([]);

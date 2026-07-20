@@ -20,14 +20,19 @@ export const VIEW_MAP = "map";
 
 const VIEWS = [VIEW_CALENDAR, VIEW_LIST, VIEW_MAP];
 
+/** Where the app opens when nothing is stored. */
+const DEFAULT_VIEW = VIEW_LIST;
+
 const STORAGE_KEY = "schedule-view";
 
 /**
- * Read the stored view, defaulting to the calendar.
+ * Read the stored view, defaulting to the list.
  *
- * The calendar is the default because the assignment makes it the required
- * primary view. Anything unrecognized in storage — a stale value, a hand-edit
- * — falls back rather than rendering nothing.
+ * The list is the default: its Upcoming tab needs only the fast scheduled feed,
+ * so the app is interactive before the ~4 MB past archive loads. The calendar
+ * (still required and one click away) needs the whole timeline, so landing
+ * there would force that archive up front — the opposite of the lazy load.
+ * Anything unrecognized in storage falls back rather than rendering nothing.
  *
  * @returns {string} One of the VIEW_* constants.
  */
@@ -35,9 +40,9 @@ export function readStoredView() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
 
-    return VIEWS.includes(stored) ? stored : VIEW_CALENDAR;
+    return VIEWS.includes(stored) ? stored : DEFAULT_VIEW;
   } catch {
-    return VIEW_CALENDAR;
+    return DEFAULT_VIEW;
   }
 }
 

@@ -19,11 +19,14 @@ export const WORDCAMPS_ENDPOINT =
 export const PER_PAGE = 100;
 
 /**
- * The status of an approved, dated, upcoming WordCamp. Fetching this alone
- * returns ~40 records in one page instead of the full ~1,500 across 15 — the
- * fast path for the initial view.
+ * WordCamp statuses. Verified against the live feed, these two partition it
+ * exactly: scheduled (~40, upcoming) + closed (~1,441, past) = the full ~1,481.
+ * So each side can be fetched — and lazily loaded — on its own, which is the
+ * only server-side lever the API offers: the event date and venue location are
+ * meta fields it will not filter or sort by.
  */
 export const SCHEDULED_STATUS = "wcpt-scheduled";
+export const CLOSED_STATUS = "wcpt-closed";
 
 /**
  * Runaway guard. The live feed is ~15 pages; this only trips if the API
@@ -66,6 +69,39 @@ function readTotalPages(response) {
   if (!Number.isFinite(total) || total < 1) return 1;
 
   return Math.min(total, MAX_PAGES);
+}
+
+/**
+ * Fetch the total record count without downloading the records.
+ *
+ * WordPress reports the collection size in the `X-WP-Total` header, so one
+ * `per_page=1` request reads the whole feed's size (~1,481) for the cost of a
+ * single record. Used to show an honest total before the archive is loaded.
+ *
+ * @param {Object} [options]
+ * @param {Function} [options.fetchImpl]
+ * @param {AbortSignal} [options.signal]
+ * @param {string} [options.status] Count one status instead of the whole feed.
+ * @returns {Promise<number>} Total records, or 0 when the header is missing.
+ */
+export async function fetchWordCampCount({
+  fetchImpl = (...args) => globalThis.fetch(...args),
+  signal,
+  status,
+} = {}) {
+  const url = new URL(WORDCAMPS_ENDPOINT);
+  url.searchParams.set("per_page", "1");
+  if (status) url.searchParams.set("status", status);
+
+  const response = await fetchImpl(url.toString(), { signal });
+
+  if (!response.ok) {
+    throw new Error(`WordCamp API request failed (HTTP ${response.status})`);
+  }
+
+  const total = Number.parseInt(response.headers?.get("X-WP-Total"), 10);
+
+  return Number.isFinite(total) && total >= 0 ? total : 0;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { AppFooter } from "@/components/AppFooter";
@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsList, Tab, TabPanel } from "@/components/ui/tabs";
 import { useCampFilters } from "@/hooks/useCampFilters";
 import { useWordCamps } from "@/hooks/useWordCamps";
+import { ALL_REGIONS } from "@/utils/filterCamps";
 
 // The map pulls in Leaflet and its cluster plugin — ~150 KiB that the calendar
 // and list never touch. Loading it only when the map is opened keeps the two
@@ -47,8 +48,11 @@ export function App() {
     camps,
     upcoming,
     past,
+    totalCount,
     isLoading,
     isArchiveLoading,
+    isArchiveLoaded,
+    requestArchive,
     isError,
     error,
     refetch,
@@ -59,6 +63,13 @@ export function App() {
   const [view, setView] = useState(readStoredView);
 
   const filters = useCampFilters(camps, upcoming, past);
+
+  // The calendar shows the whole timeline, so it needs the past archive.
+  // Requesting it here covers both switching to the calendar and landing on
+  // it as the stored view; requestArchive is idempotent.
+  useEffect(() => {
+    if (view === VIEW_CALENDAR) requestArchive();
+  }, [view, requestArchive]);
 
   const changeView = (next) => {
     persistView(next);
@@ -83,8 +94,10 @@ export function App() {
           <LoadedSchedule
             view={view}
             onViewChange={changeView}
-            totalCount={camps.length}
+            totalCount={totalCount}
             isArchiveLoading={isArchiveLoading}
+            isArchiveLoaded={isArchiveLoaded}
+            onNeedArchive={requestArchive}
             filters={filters}
           />
         )}
@@ -104,8 +117,10 @@ export function App() {
  * @param {Object} props
  * @param {string} props.view
  * @param {(view: string) => void} props.onViewChange
- * @param {number} props.totalCount Unfiltered camp count, for the result label.
+ * @param {number} props.totalCount Total across the whole feed, from the header.
  * @param {boolean} props.isArchiveLoading The past archive is still streaming.
+ * @param {boolean} props.isArchiveLoaded The past archive has loaded.
+ * @param {() => void} props.onNeedArchive Load the past archive on demand.
  * @param {ReturnType<typeof useCampFilters>} props.filters
  */
 function LoadedSchedule({
@@ -113,6 +128,8 @@ function LoadedSchedule({
   onViewChange,
   totalCount,
   isArchiveLoading,
+  isArchiveLoaded,
+  onNeedArchive,
   filters,
 }) {
   const {
@@ -126,18 +143,43 @@ function LoadedSchedule({
     shownPast,
   } = filters;
 
+  // Before the archive loads, the Past count is not known from records — but
+  // the header total minus upcoming gives it exactly (both unfiltered). Once
+  // the archive is in, the real filtered count takes over.
+  const pastCount = isArchiveLoaded
+    ? shownPast.length
+    : Math.max(totalCount - shownUpcoming.length, 0);
+
+  // Filtering and the Past tab both reach into past events, which live in the
+  // lazily-loaded archive — so touching either pulls it in.
+  const search = (value) => {
+    if (value.trim() !== "") onNeedArchive();
+    setQuery(value);
+  };
+  const filterRegion = (value) => {
+    if (value !== ALL_REGIONS) onNeedArchive();
+    setRegion(value);
+  };
+  const onTabChange = (value) => {
+    if (value === TAB_PAST) onNeedArchive();
+  };
+
   // When a filter is active but a view is empty, say so — otherwise the
-  // "no WordCamps" copy reads as if the data failed to load.
+  // "no WordCamps" copy reads as if the data failed to load. The past side gets
+  // a loading message while its archive is still in flight.
   const emptyFor = (base) =>
     isFiltering ? "No WordCamps match your search." : base;
+  const pastEmpty = isArchiveLoading
+    ? "Loading the full archive…"
+    : emptyFor("No past WordCamps found.");
 
   return (
     <>
       <Filters
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={search}
         region={region}
-        onRegionChange={setRegion}
+        onRegionChange={filterRegion}
         resultCount={shownCamps.length}
         totalCount={totalCount}
       />
@@ -163,11 +205,11 @@ function LoadedSchedule({
           />
         </>
       ) : (
-        <Tabs defaultValue={TAB_UPCOMING}>
+        <Tabs defaultValue={TAB_UPCOMING} onValueChange={onTabChange}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList>
               <Tab value={TAB_UPCOMING}>Upcoming ({shownUpcoming.length})</Tab>
-              <Tab value={TAB_PAST}>Past ({shownPast.length})</Tab>
+              <Tab value={TAB_PAST}>Past ({pastCount})</Tab>
             </TabsList>
 
             <ViewToggle view={view} onViewChange={onViewChange} />
@@ -186,7 +228,7 @@ function LoadedSchedule({
             <TabbedView
               view={view}
               camps={shownPast}
-              emptyMessage={emptyFor("No past WordCamps found.")}
+              emptyMessage={pastEmpty}
               revealLabel="Show earlier"
             />
           </TabPanel>

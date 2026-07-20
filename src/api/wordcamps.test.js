@@ -1,15 +1,27 @@
-import { fetchWordCamps, WORDCAMPS_ENDPOINT, PER_PAGE } from "@/api/wordcamps";
+import {
+  fetchWordCamps,
+  fetchWordCampCount,
+  WORDCAMPS_ENDPOINT,
+  PER_PAGE,
+} from "@/api/wordcamps";
 
 /**
  * Build a fake Response. Only the surface the client actually touches is
- * implemented — status, the X-WP-TotalPages header, and json().
+ * implemented — status, the X-WP-Total(Pages) headers, and json().
  */
-const response = (body, { ok = true, status = 200, totalPages = 1 } = {}) => ({
+const response = (
+  body,
+  { ok = true, status = 200, totalPages = 1, total } = {},
+) => ({
   ok,
   status,
   headers: {
-    get: (name) =>
-      name.toLowerCase() === "x-wp-totalpages" ? String(totalPages) : null,
+    get: (name) => {
+      const key = name.toLowerCase();
+      if (key === "x-wp-totalpages") return String(totalPages);
+      if (key === "x-wp-total") return total === undefined ? null : String(total);
+      return null;
+    },
   },
   json: async () => body,
 });
@@ -178,5 +190,40 @@ describe("fetchWordCamps", () => {
     await fetchWordCamps({ fetchImpl, signal });
 
     expect(fetchImpl.mock.calls[0][1]).toMatchObject({ signal });
+  });
+});
+
+describe("fetchWordCampCount", () => {
+  it("reads the total from the header with a single tiny request", async () => {
+    const fetchImpl = jest.fn(async () => response([record(1)], { total: 1481 }));
+
+    const total = await fetchWordCampCount({ fetchImpl });
+
+    expect(total).toBe(1481);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const url = new URL(fetchImpl.mock.calls[0][0]);
+    expect(url.searchParams.get("per_page")).toBe("1");
+  });
+
+  it("counts one status when asked", async () => {
+    const fetchImpl = jest.fn(async () => response([record(1)], { total: 40 }));
+
+    const total = await fetchWordCampCount({ fetchImpl, status: "wcpt-scheduled" });
+
+    expect(total).toBe(40);
+    const url = new URL(fetchImpl.mock.calls[0][0]);
+    expect(url.searchParams.get("status")).toBe("wcpt-scheduled");
+  });
+
+  it("returns 0 when the header is missing", async () => {
+    const fetchImpl = jest.fn(async () => response([record(1)]));
+
+    await expect(fetchWordCampCount({ fetchImpl })).resolves.toBe(0);
+  });
+
+  it("throws with the status when the response is not ok", async () => {
+    const fetchImpl = jest.fn(async () => response(null, { ok: false, status: 500 }));
+
+    await expect(fetchWordCampCount({ fetchImpl })).rejects.toThrow("HTTP 500");
   });
 });
