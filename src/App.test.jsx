@@ -12,6 +12,11 @@ import {
  * App-level integration: the real hook, the real utils, the real components —
  * only the network is faked. These are the tests that would catch a wiring
  * mistake no unit test can see.
+ *
+ * The calendar opens on the real current month, so month-specific behaviour
+ * (today's marker, navigation, clamping) is asserted in MonthCalendar's own
+ * suite where the clock is injected. Here the calendar is checked for being
+ * wired up at all, which is what cannot rot.
  */
 
 /** 2099 and 2001: far enough either side of any real "today" to be stable. */
@@ -38,6 +43,17 @@ const mockFetch = (impl) => {
   global.fetch = jest.fn(impl);
 };
 
+/** Start in the list view, where the upcoming/past tabs live. */
+const renderInListView = () => {
+  localStorage.setItem("schedule-view", "list");
+
+  return renderWithQuery(<App />);
+};
+
+afterEach(() => {
+  localStorage.clear();
+});
+
 describe("App", () => {
   it("shows a loading state before data arrives", () => {
     // A pending promise holds the app in its loading state.
@@ -46,89 +62,6 @@ describe("App", () => {
     renderWithQuery(<App />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading WordCamps");
-  });
-
-  it("shows upcoming camps by default once loaded", async () => {
-    mockFetch(async () => apiResponse(RECORDS));
-
-    renderWithQuery(<App />);
-
-    // Title is entity-decoded end to end — proof the normalizer is wired in.
-    expect(
-      await screen.findByRole("link", { name: "WordCamp Future – Rome" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("WordCamp History")).not.toBeInTheDocument();
-  });
-
-  it("labels each tab with its count", async () => {
-    mockFetch(async () => apiResponse(RECORDS));
-
-    renderWithQuery(<App />);
-
-    expect(
-      await screen.findByRole("tab", { name: "Upcoming (1)" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Past (1)" })).toBeInTheDocument();
-  });
-
-  it("shows past camps after switching tabs", async () => {
-    const user = userEvent.setup();
-    mockFetch(async () => apiResponse(RECORDS));
-
-    renderWithQuery(<App />);
-    await user.click(await screen.findByRole("tab", { name: /Past/ }));
-
-    expect(await screen.findByText("WordCamp History")).toBeInTheDocument();
-    expect(
-      screen.queryByText("WordCamp Future – Rome"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("marks the selected tab for assistive technology", async () => {
-    const user = userEvent.setup();
-    mockFetch(async () => apiResponse(RECORDS));
-
-    renderWithQuery(<App />);
-    const pastTab = await screen.findByRole("tab", { name: /Past/ });
-
-    expect(screen.getByRole("tab", { name: /Upcoming/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-
-    await user.click(pastTab);
-
-    expect(pastTab).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("switches tabs with the keyboard, using manual activation", async () => {
-    // Base UI supplies arrow-key navigation; this asserts it survived the
-    // styling wrapper rather than trusting the library blindly.
-    //
-    // Manual activation (the Base UI default) is kept deliberately: arrow keys
-    // move focus, Enter/Space activates. With automatic activation, arrowing
-    // across the tabs would render the Past panel — twelve month sections of
-    // cards — just to pass over it.
-    const user = userEvent.setup();
-    mockFetch(async () => apiResponse(RECORDS));
-
-    renderWithQuery(<App />);
-    const upcomingTab = await screen.findByRole("tab", { name: /Upcoming/ });
-    const pastTab = screen.getByRole("tab", { name: /Past/ });
-
-    // Focus via user-event rather than a raw .focus() call: the raw call
-    // triggers a Base UI state update outside act() and logs a warning.
-    // Upcoming is already selected, so clicking it changes focus, not state.
-    await user.click(upcomingTab);
-    await user.keyboard("{ArrowRight}");
-
-    expect(pastTab).toHaveFocus();
-    expect(pastTab).toHaveAttribute("aria-selected", "false");
-
-    await user.keyboard("{Enter}");
-
-    expect(pastTab).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByText("WordCamp History")).toBeInTheDocument();
   });
 
   it("shows an error state when the API fails", async () => {
@@ -146,7 +79,7 @@ describe("App", () => {
     // The underlying reason is shown too — that is what makes a bug report
     // actionable, where a friendly sentence alone would not.
     expect(alert).toHaveTextContent("HTTP 503");
-    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
   it("recovers when a retry succeeds", async () => {
@@ -169,9 +102,7 @@ describe("App", () => {
       within(await screen.findByRole("alert")).getByRole("button"),
     );
 
-    expect(
-      await screen.findByRole("tab", { name: /Upcoming/ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: /WordCamps in/ })).toBeInTheDocument();
   });
 
   it("shows an empty message when the API returns nothing", async () => {
@@ -179,16 +110,14 @@ describe("App", () => {
 
     renderWithQuery(<App />);
 
-    expect(
-      await screen.findByText("No upcoming WordCamps with scheduled dates."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("No WordCamps found.")).toBeInTheDocument();
   });
 
   it("renders one h1 inside a main landmark", async () => {
     mockFetch(async () => apiResponse(RECORDS));
 
     renderWithQuery(<App />);
-    await screen.findByRole("tab", { name: /Upcoming/ });
+    await screen.findByRole("table", { name: /WordCamps in/ });
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("main")).toBeInTheDocument();
@@ -196,34 +125,145 @@ describe("App", () => {
     expect(screen.getByRole("contentinfo")).toBeInTheDocument();
   });
 
-  it("fetches once for the whole page, not once per tab", async () => {
-    const user = userEvent.setup();
-    mockFetch(async () => apiResponse(RECORDS));
-
-    renderWithQuery(<App />);
-    await user.click(await screen.findByRole("tab", { name: /Past/ }));
-    await user.click(screen.getByRole("tab", { name: /Upcoming/ }));
-
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
-  });
-
-  describe("view switching", () => {
-    afterEach(() => {
-      // The stored view would otherwise leak into the next test's default.
-      localStorage.clear();
-    });
-
-    it("opens on the calendar, the assignment's required primary view", async () => {
+  describe("calendar view", () => {
+    it("is what the app opens on, being the required primary view", async () => {
       mockFetch(async () => apiResponse(RECORDS));
 
       renderWithQuery(<App />);
 
       expect(
-        await screen.findByRole("table", { name: /WordCamps in March 2099/ }),
+        await screen.findByRole("table", { name: /WordCamps in/ }),
       ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Calendar" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
     });
 
-    it("switches to the month-section list", async () => {
+    it("carries no upcoming/past tabs", async () => {
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await screen.findByRole("table", { name: /WordCamps in/ });
+
+      // A calendar is continuous time and already marks today; splitting it in
+      // two would render the same month twice with different subsets.
+      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    });
+
+    it("draws on the whole timeline, not one side of today", async () => {
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await screen.findByRole("table", { name: /WordCamps in/ });
+
+      // Both camps are decades from the opening month, so neither shows yet —
+      // but navigation reaches both, which the clamped bounds prove.
+      expect(
+        screen.getByRole("button", { name: "Previous month" }),
+      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Next month" })).toBeEnabled();
+    });
+  });
+
+  describe("list view", () => {
+    it("shows upcoming camps by default once loaded", async () => {
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+
+      // Title is entity-decoded end to end — proof the normalizer is wired in.
+      expect(
+        await screen.findByRole("link", { name: "WordCamp Future – Rome" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("WordCamp History")).not.toBeInTheDocument();
+    });
+
+    it("labels each tab with its count", async () => {
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+
+      expect(
+        await screen.findByRole("tab", { name: "Upcoming (1)" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Past (1)" })).toBeInTheDocument();
+    });
+
+    it("shows past camps after switching tabs", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+      await user.click(await screen.findByRole("tab", { name: /Past/ }));
+
+      expect(await screen.findByText("WordCamp History")).toBeInTheDocument();
+      expect(
+        screen.queryByText("WordCamp Future – Rome"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("marks the selected tab for assistive technology", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+      const pastTab = await screen.findByRole("tab", { name: /Past/ });
+
+      expect(screen.getByRole("tab", { name: /Upcoming/ })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+
+      await user.click(pastTab);
+
+      expect(pastTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("switches tabs with the keyboard, using manual activation", async () => {
+      // Base UI supplies arrow-key navigation; this asserts it survived the
+      // styling wrapper rather than trusting the library blindly.
+      //
+      // Manual activation (the Base UI default) is kept deliberately: arrow
+      // keys move focus, Enter/Space activates. With automatic activation,
+      // arrowing across the tabs would render the Past panel — twelve month
+      // sections of cards — just to pass over it.
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+      const upcomingTab = await screen.findByRole("tab", { name: /Upcoming/ });
+      const pastTab = screen.getByRole("tab", { name: /Past/ });
+
+      // Focus via user-event rather than a raw .focus() call: the raw call
+      // triggers a Base UI state update outside act() and logs a warning.
+      // Upcoming is already selected, so clicking it changes focus, not state.
+      await user.click(upcomingTab);
+      await user.keyboard("{ArrowRight}");
+
+      expect(pastTab).toHaveFocus();
+      expect(pastTab).toHaveAttribute("aria-selected", "false");
+
+      await user.keyboard("{Enter}");
+
+      expect(pastTab).toHaveAttribute("aria-selected", "true");
+      expect(await screen.findByText("WordCamp History")).toBeInTheDocument();
+    });
+
+    it("fetches once for the whole page, not once per tab", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+      await user.click(await screen.findByRole("tab", { name: /Past/ }));
+      await user.click(screen.getByRole("tab", { name: /Upcoming/ }));
+
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    });
+  });
+
+  describe("view switching", () => {
+    it("swaps the calendar for the month-section list", async () => {
       const user = userEvent.setup();
       mockFetch(async () => apiResponse(RECORDS));
 
@@ -236,18 +276,27 @@ describe("App", () => {
       ).toBeInTheDocument();
     });
 
-    it("keeps the chosen view across a tab switch", async () => {
+    it("brings the tabs back with the list", async () => {
       const user = userEvent.setup();
       mockFetch(async () => apiResponse(RECORDS));
 
       renderWithQuery(<App />);
       await user.click(await screen.findByRole("button", { name: "List" }));
-      await user.click(screen.getByRole("tab", { name: /Past/ }));
 
-      // Still the list, now showing the past camp's month.
-      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /Upcoming/ })).toBeInTheDocument();
+    });
+
+    it("returns to the calendar, dropping the tabs again", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.click(await screen.findByRole("button", { name: "List" }));
+      await user.click(screen.getByRole("button", { name: "Calendar" }));
+
+      expect(screen.queryByRole("tab")).not.toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { level: 2, name: "June 2001" }),
+        screen.getByRole("table", { name: /WordCamps in/ }),
       ).toBeInTheDocument();
     });
 

@@ -8,6 +8,7 @@ import { LoadingState, ErrorState } from "@/components/states";
 import {
   ViewToggle,
   VIEW_CALENDAR,
+  VIEW_LIST,
   readStoredView,
   persistView,
 } from "@/components/ViewToggle";
@@ -15,17 +16,24 @@ import { Tabs, TabsList, Tab, TabPanel } from "@/components/ui/tabs";
 import { useWordCamps } from "@/hooks/useWordCamps";
 
 /**
- * Application shell: header, upcoming/past tabs over the schedule, footer.
+ * Application shell: header, the schedule in the chosen view, footer.
  *
  * All data concerns live in `useWordCamps`; this component only decides which
  * of the four states to render, and which view renders the camps.
+ *
+ * The upcoming/past tabs belong to the list, not to the calendar. A calendar
+ * is continuous time and already marks today, so splitting it in two makes
+ * the same month render twice with different subsets — July shows the camps
+ * before the 20th under one tab and the ones after it under another. The tabs
+ * are a filter, and a filter belongs to the view that needs filtering.
  */
 
 const TAB_UPCOMING = "upcoming";
 const TAB_PAST = "past";
 
 export function App() {
-  const { upcoming, past, isLoading, isError, error, refetch } = useWordCamps();
+  const { camps, upcoming, past, isLoading, isError, error, refetch } =
+    useWordCamps();
 
   // The view lives here rather than in each panel: it is a mode, and it
   // should survive switching between Upcoming and Past.
@@ -45,7 +53,17 @@ export function App() {
 
         {isError && <ErrorState error={error} onRetry={refetch} />}
 
-        {!isLoading && !isError && (
+        {!isLoading && !isError && view === VIEW_CALENDAR && (
+          <>
+            <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
+              <ViewToggle view={view} onViewChange={changeView} />
+            </div>
+
+            <MonthCalendar camps={camps} emptyMessage="No WordCamps found." />
+          </>
+        )}
+
+        {!isLoading && !isError && view === VIEW_LIST && (
           <Tabs defaultValue={TAB_UPCOMING}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <TabsList>
@@ -57,8 +75,7 @@ export function App() {
             </div>
 
             <TabPanel value={TAB_UPCOMING}>
-              <ScheduleView
-                view={view}
+              <ListView
                 camps={upcoming}
                 emptyMessage="No upcoming WordCamps with scheduled dates."
                 revealLabel="Show later"
@@ -66,8 +83,7 @@ export function App() {
             </TabPanel>
 
             <TabPanel value={TAB_PAST}>
-              <ScheduleView
-                view={view}
+              <ListView
                 camps={past}
                 emptyMessage="No past WordCamps found."
                 revealLabel="Show earlier"
@@ -79,31 +95,5 @@ export function App() {
 
       <AppFooter />
     </div>
-  );
-}
-
-/**
- * Render camps in the chosen view.
- *
- * Both tab panels need this branch, so it lives in one place — otherwise the
- * two panels would drift the moment either view gains a prop.
- *
- * @param {Object} props
- * @param {string} props.view
- * @param {Array} props.camps
- * @param {string} props.emptyMessage
- * @param {string} props.revealLabel List view only; the calendar pages by month.
- */
-function ScheduleView({ view, camps, emptyMessage, revealLabel }) {
-  if (view === VIEW_CALENDAR) {
-    return <MonthCalendar camps={camps} emptyMessage={emptyMessage} />;
-  }
-
-  return (
-    <ListView
-      camps={camps}
-      emptyMessage={emptyMessage}
-      revealLabel={revealLabel}
-    />
   );
 }

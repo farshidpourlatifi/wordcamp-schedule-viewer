@@ -47,12 +47,34 @@ describe("MonthCalendar", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("opens on the first camp's month, not today's", () => {
-    // June is months away from the fixed NOW in March.
+  it("opens on today's month when the data reaches it", () => {
+    renderCalendar({
+      camps: [
+        camp({ id: 1, startDate: utc(2026, 1, 5) }),
+        camp({ id: 2, startDate: utc(2026, 6, 4) }),
+      ],
+    });
+
+    // NOW is 10 March 2026, between the two camps: the calendar opens where
+    // the reader already is, not on the first camp months earlier.
+    expect(
+      screen.getByRole("heading", { level: 2, name: "March 2026" }),
+    ).toBeInTheDocument();
+  });
+
+  it("clamps forward when the data starts after today", () => {
     renderCalendar({ camps: [camp({ startDate: utc(2026, 6, 4) })] });
 
     expect(
       screen.getByRole("heading", { level: 2, name: "June 2026" }),
+    ).toBeInTheDocument();
+  });
+
+  it("clamps back when the data ends before today", () => {
+    renderCalendar({ camps: [camp({ startDate: utc(2024, 9, 7) })] });
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "September 2024" }),
     ).toBeInTheDocument();
   });
 
@@ -130,6 +152,57 @@ describe("MonthCalendar", () => {
 
     expect(cellFor(10)).toHaveAttribute("aria-current", "date");
     expect(cellFor(14)).not.toHaveAttribute("aria-current");
+  });
+
+  it("names today in the cell, not by colour alone", () => {
+    renderCalendar();
+
+    expect(within(cellFor(10)).getByText(/\(today\)/)).toBeInTheDocument();
+  });
+
+  describe("the Today control", () => {
+    const spread = [
+      camp({ id: 1, startDate: utc(2026, 1, 5) }),
+      camp({ id: 2, startDate: utc(2026, 6, 4) }),
+    ];
+
+    it("says which day it means", () => {
+      renderCalendar({ camps: spread });
+
+      expect(
+        screen.getByRole("button", { name: "Go to today, Tue, 10 Mar 2026" }),
+      ).toBeInTheDocument();
+    });
+
+    it("is idle while today is already on screen", () => {
+      renderCalendar({ camps: spread });
+
+      expect(screen.getByRole("button", { name: /Go to today/ })).toBeDisabled();
+    });
+
+    it("returns to today's month after navigating away", async () => {
+      const user = userEvent.setup();
+      renderCalendar({ camps: spread });
+
+      await user.click(screen.getByRole("button", { name: "Next month" }));
+      await user.click(screen.getByRole("button", { name: "Next month" }));
+      expect(
+        screen.getByRole("heading", { level: 2, name: "May 2026" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /Go to today/ }));
+
+      expect(
+        screen.getByRole("heading", { level: 2, name: "March 2026" }),
+      ).toBeInTheDocument();
+    });
+
+    it("stays idle when the data never reaches today", () => {
+      // Every camp is years past; jumping to today would leave the data.
+      renderCalendar({ camps: [camp({ startDate: utc(2024, 9, 7) })] });
+
+      expect(screen.getByRole("button", { name: /Go to today/ })).toBeDisabled();
+    });
   });
 
   describe("multi-day camps", () => {

@@ -29,22 +29,25 @@ import { formatCampDate, formatMonthLabel } from "@/utils/formatDate";
  */
 
 /**
- * First month to display.
+ * First month to display: today's, pulled into the range that holds camps.
  *
- * The first camp's month, not today's. `partitionByDate` sorts upcoming
- * soonest-first and past most-recent-first, so the first camp is always the
- * one nearest to now on that tab — which means the calendar never opens on an
- * empty grid. For the Past tab "today" is out of range by definition, so
- * anchoring on the clock would be actively wrong there.
+ * The calendar is one continuous timeline rather than an upcoming/past split,
+ * so "now" is the honest place to open — it is where the reader already is,
+ * with recent camps one click back and the next ones in view. Clamping keeps
+ * the opening grid populated if the feed happens not to reach today.
  *
  * @param {Array<{startDate: Date|null}>} camps
- * @param {Date} now Fallback when no camp has a usable date.
+ * @param {Date} now
  * @returns {Date} First of the month to render.
  */
 function initialMonth(camps, now) {
-  const dated = camps.find((camp) => camp?.startDate);
+  const today = startOfUtcMonth(now);
+  const { first, last } = monthBounds(camps);
 
-  return startOfUtcMonth(dated ? dated.startDate : now);
+  if (first !== null && today < first) return first;
+  if (last !== null && today > last) return last;
+
+  return today;
 }
 
 /**
@@ -70,6 +73,16 @@ export function MonthCalendar({ camps, emptyMessage, now = new Date() }) {
 
   const monthLabel = formatMonthLabel(monthStart);
   const todayKey = toDayKey(now);
+  const todayMonth = startOfUtcMonth(now);
+
+  // "Today" is only offered when it would actually land somewhere: not while
+  // it is already on screen, and not when the feed does not reach this month.
+  const todayInRange =
+    bounds.first !== null &&
+    todayMonth >= bounds.first &&
+    todayMonth <= bounds.last;
+  const canJumpToToday =
+    todayInRange && todayMonth.getTime() !== monthStart.getTime();
 
   // Navigation is clamped to the months that actually hold camps. Unclamped,
   // the Past calendar would page into either direction of guaranteed
@@ -91,11 +104,25 @@ export function MonthCalendar({ camps, emptyMessage, now = new Date() }) {
           <ChevronIcon direction="left" />
         </Button>
 
-        {/* Announced on change so keyboard and screen-reader users hear where
-            the previous/next buttons landed them. */}
-        <h2 aria-live="polite" className="text-lg font-semibold">
-          {monthLabel}
-        </h2>
+        <div className="flex items-center gap-3">
+          {/* Announced on change so keyboard and screen-reader users hear
+              where the previous/next buttons landed them. */}
+          <h2 aria-live="polite" className="text-lg font-semibold">
+            {monthLabel}
+          </h2>
+
+          <Button
+            onClick={() => setMonthStart(todayMonth)}
+            disabled={!canJumpToToday}
+            className="px-3 py-1 text-xs"
+            // The date is spelled out rather than left as "Today", so the
+            // control says where it goes without needing the grid for context.
+            aria-label={`Go to today, ${formatCampDate(now)}`}
+            title={`Today is ${formatCampDate(now)}`}
+          >
+            Today
+          </Button>
+        </div>
 
         <Button
           variant="ghost"
@@ -178,6 +205,9 @@ function DayCell({ day, entries, isCurrentMonth, isToday }) {
       className={cn(
         "h-24 border border-border p-1 align-top",
         !isCurrentMonth && "bg-muted/30",
+        // An inset ring rather than a fill: it reads at a glance in both
+        // themes without putting text on a `primary` background.
+        isToday && "ring-2 ring-inset ring-primary",
       )}
     >
       <span
@@ -190,6 +220,7 @@ function DayCell({ day, entries, isCurrentMonth, isToday }) {
         )}
       >
         {day.getUTCDate()}
+        {isToday && <span className="sr-only"> (today)</span>}
       </span>
 
       {entries && (

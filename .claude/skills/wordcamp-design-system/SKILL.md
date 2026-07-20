@@ -164,7 +164,29 @@ Pill-style segmented control built on Base UI Tabs. Active pill: `card` bg,
 Base UI provides the roles/keyboard behavior; ensure `aria-selected` and a visible
 `ring` focus outline.
 
-### CalendarView (required primary view)
+### ViewToggle (Calendar / List)
+Pill-style segmented control matching the Tabs treatment, sitting on the same
+row as the tabs (right-aligned). Two buttons in a `role="group"`, each carrying
+`aria-pressed`. Active: `card` bg, `foreground` text, subtle shadow. Inactive:
+transparent, `muted-foreground` text.
+
+### MonthCalendar (required primary view)
+A real month grid as a native `<table>`, Monday-first, six fixed rows so the
+height never jumps between months. Header row: `muted-foreground`, uppercase,
+tracked. Day cells: `border` hairlines, `h-24`, top-aligned; adjacent-month
+cells get `bg-muted/30` and a dimmed day number. Today's day number is
+`primary` and bold, with `aria-current="date"` on the cell.
+
+Nav row above the grid: ghost chevron buttons either side of an `h2` month
+label, disabled at the bounds of the data.
+
+Camp chips: `secondary` bg with `secondary-foreground`, `rounded`, `text-xs`,
+truncated. **Never `primary` as a chip fill** — in dark mode `--primary` is
+lightened as a text accent and hits only 2.99:1 behind `primary-foreground`.
+Continuation days of a multi-day camp are `muted-foreground` text with a `↳`
+marker and no link.
+
+### ListView (companion view)
 WordCamps grouped into **month sections** in chronological order. Each section:
 uppercase `primary`-colored month label (`March 2026`) with a `border` hairline
 rule beneath, then a responsive grid of cards

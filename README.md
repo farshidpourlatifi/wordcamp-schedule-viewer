@@ -38,13 +38,47 @@ is strictly read-only.
 ```
 src/
   api/         WP REST client: pagination, error handling, injectable fetch
-  utils/       Pure functions: decode, parse, normalize, partition, group, format
+  utils/       Pure functions: decode, parse, normalize, partition, group,
+               format, calendar grid math
   hooks/       useWordCamps — owns fetch → normalize → partition
-  components/  App, CalendarView, WordCampCard, states, header/footer
+  components/  App, MonthCalendar, ListView, WordCampCard, states,
+               header/footer, theme + view toggles
     ui/        Hand-written primitives (Card, Button, Skeleton, Tabs)
   lib/         cn() class merger, QueryClient factory
   test/        Shared fixtures (real API records) and render helpers
 ```
+
+### Two views, and why there are two
+
+**`MonthCalendar` is the calendar view** and the app's default — a real month
+grid, Monday-first, one month at a time, with camps in the day cells they
+occupy.
+
+**`ListView` is a companion**, not a requirement. The calendar cannot serve the
+Past tab on its own: there are ~1,445 past camps across ~219 months, so paging
+a month at a time means ~219 clicks to cross the archive. The list scans that
+same history in one scroll. The two split the work by data density — the
+calendar answers "what is on this day", the list answers "what has there
+been" — and a single toggle beside the tabs switches between them, persisted
+to `localStorage`.
+
+Three decisions in the calendar came from looking at the live data rather than
+guessing at it:
+
+- **It opens on the first camp's month, not today's.** On the Past tab "today"
+  is out of range by definition, so anchoring to the clock would open an empty
+  grid. Navigation is also clamped to the months that hold camps.
+- **Long-running entries are not drawn across the grid.** 16% of dated records
+  span 15+ days — "WordPress Campus Connect" entries are multi-month campus
+  programmes, not events you attend on a day, and the longest runs 149 days.
+  Expanding those buried the single-day camps around them, so anything past a
+  week sits on its start day and states its end date instead. Conference-length
+  camps (the feed tops out at 8 days) still appear on every day they cover.
+- **It is a `<table>`, not `role="grid"`.** This is a read-only display of
+  events, not a date picker, so the grid pattern's roving tabindex and
+  arrow-key navigation would be machinery with no user benefit. A table gives
+  screen readers row and column context for free and leaves the camp links in
+  the natural tab order.
 
 **The shape, and why:**
 

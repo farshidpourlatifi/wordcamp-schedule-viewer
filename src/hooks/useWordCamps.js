@@ -26,8 +26,9 @@ const EMPTY = [];
  * @param {Date} [options.now] Injectable clock. Omit in app code — passing an
  *   inline `new Date()` would change identity every render and re-partition
  *   the whole list each time.
- * @returns {{upcoming: Array, past: Array, isLoading: boolean,
- *   isError: boolean, error: Error|null, refetch: Function}}
+ * @returns {{camps: Array, upcoming: Array, past: Array, isLoading: boolean,
+ *   isError: boolean, error: Error|null, refetch: Function}} `camps` is the
+ *   whole list; `upcoming`/`past` are it split around `now`.
  */
 export function useWordCamps({ fetchImpl, now } = {}) {
   const query = useQuery({
@@ -42,13 +43,18 @@ export function useWordCamps({ fetchImpl, now } = {}) {
   // Normalizing and partitioning ~1,500 records is not free, and it does not
   // depend on anything that changes between renders. Memoizing also keeps the
   // returned array identities stable, so the calendar view can memoize too.
-  const { upcoming, past } = useMemo(() => {
-    if (!data) return { upcoming: EMPTY, past: EMPTY };
+  const { camps, upcoming, past } = useMemo(() => {
+    if (!data) return { camps: EMPTY, upcoming: EMPTY, past: EMPTY };
 
-    return partitionByDate(normalizeWordCamps(data), now);
+    // The calendar wants one continuous timeline, the list wants the split —
+    // both come off a single normalize pass rather than doing it twice.
+    const normalized = normalizeWordCamps(data);
+
+    return { camps: normalized, ...partitionByDate(normalized, now) };
   }, [data, now]);
 
   return {
+    camps,
     upcoming,
     past,
     isLoading: query.isPending,
