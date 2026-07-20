@@ -24,12 +24,15 @@ const SKELETON_CARD_COUNT = 6;
  * The shape follows the view being loaded into. A card skeleton standing in
  * for the calendar table cost 0.36 CLS on the deployed build: the table is
  * several times taller, so everything below it jumped when the data arrived.
+ * The map is taller still, so it reserves its own frame.
  *
  * @param {Object} props
- * @param {boolean} [props.calendar] Reserve the month grid's shape instead.
+ * @param {boolean} [props.calendar] Reserve the month grid's shape.
+ * @param {boolean} [props.map] Reserve the map's frame.
  */
-export function LoadingState({ calendar = false }) {
+export function LoadingState({ calendar = false, map = false }) {
   if (calendar) return <CalendarSkeleton />;
+  if (map) return <MapSkeleton />;
 
   return (
     <div role="status" aria-live="polite">
@@ -46,6 +49,19 @@ export function LoadingState({ calendar = false }) {
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Loading placeholder shaped like the map: one tall framed block matching
+ * MapView's `h-[70vh]` container, so the map drops into space already held.
+ */
+function MapSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading WordCamps…</span>
+      <Skeleton className="h-[70vh] min-h-80 w-full rounded-lg" />
     </div>
   );
 }

@@ -46,6 +46,22 @@ describe("LoadingState", () => {
       expect(cells).toHaveLength(WEEKS_PER_GRID * DAYS_PER_WEEK);
     });
   });
+
+  describe("map variant", () => {
+    it("still announces itself", () => {
+      render(<LoadingState map />);
+
+      expect(screen.getByRole("status")).toHaveTextContent("Loading WordCamps");
+    });
+
+    it("reserves the map's tall frame rather than a card grid", () => {
+      // A card skeleton under the taller map would jump the page; the map
+      // skeleton matches the map's h-[70vh] frame instead.
+      const { container } = render(<LoadingState map />);
+
+      expect(container.querySelector(".h-\\[70vh\\]")).toBeInTheDocument();
+    });
+  });
 });
 
 describe("ErrorState", () => {

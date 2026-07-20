@@ -261,7 +261,7 @@ describe("App", () => {
       expect(await screen.findByText("WordCamp History")).toBeInTheDocument();
     });
 
-    it("fetches once for the whole page, not once per tab", async () => {
+    it("fetches the two feeds for the whole page, not once per tab", async () => {
       const user = userEvent.setup();
       mockFetch(async () => apiResponse(RECORDS));
 
@@ -269,7 +269,8 @@ describe("App", () => {
       await user.click(await screen.findByRole("tab", { name: /Past/ }));
       await user.click(screen.getByRole("tab", { name: /Upcoming/ }));
 
-      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+      // Scheduled + archive, and switching tabs adds nothing.
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
     });
   });
 
@@ -350,6 +351,37 @@ describe("App", () => {
       // The past tab feeds its one camp to the same map.
       expect(await screen.findByTestId("map-view")).toHaveTextContent(
         "1 on the map",
+      );
+    });
+  });
+
+  describe("progressive loading", () => {
+    it("notes the archive is still loading, then clears it", async () => {
+      let releaseArchive;
+      const archiveReady = new Promise((resolve) => {
+        releaseArchive = resolve;
+      });
+
+      // Scheduled feed answers at once; the full archive is held pending.
+      global.fetch = jest.fn((url) => {
+        const isScheduled =
+          new URL(url).searchParams.get("status") === "wcpt-scheduled";
+        return isScheduled
+          ? Promise.resolve(apiResponse(RECORDS))
+          : archiveReady.then(() => apiResponse(RECORDS));
+      });
+
+      renderWithQuery(<App />);
+
+      // Upcoming is already usable while the archive streams.
+      expect(await screen.findByText("Loading the full archive…")).toBeInTheDocument();
+
+      releaseArchive();
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Loading the full archive…"),
+        ).not.toBeInTheDocument(),
       );
     });
   });

@@ -30,6 +30,24 @@ describe("fetchWordCamps", () => {
     });
   });
 
+  it("omits the status param by default", async () => {
+    const fetchImpl = jest.fn(async () => response([record(1)]));
+
+    await fetchWordCamps({ fetchImpl });
+
+    const url = new URL(fetchImpl.mock.calls[0][0]);
+    expect(url.searchParams.has("status")).toBe(false);
+  });
+
+  it("adds the status param when one is given", async () => {
+    const fetchImpl = jest.fn(async () => response([record(1)]));
+
+    await fetchWordCamps({ fetchImpl, status: "wcpt-scheduled" });
+
+    const url = new URL(fetchImpl.mock.calls[0][0]);
+    expect(url.searchParams.get("status")).toBe("wcpt-scheduled");
+  });
+
   it("returns the records from a single-page response", async () => {
     const fetchImpl = jest.fn(async () => response([record(1), record(2)]));
 

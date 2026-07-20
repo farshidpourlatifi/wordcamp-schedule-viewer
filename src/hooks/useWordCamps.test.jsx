@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { useWordCamps } from "@/hooks/useWordCamps";
@@ -135,7 +135,47 @@ describe("useWordCamps", () => {
     expect(fetchImpl.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("fetches once for a single mount, not once per render", async () => {
+  it("shows upcoming from the scheduled feed while the archive still loads", async () => {
+    // The scheduled feed answers instantly with the upcoming camp; the full
+    // archive is held pending, so the app is usable before it lands.
+    let releaseArchive;
+    const archiveReady = new Promise((resolve) => {
+      releaseArchive = resolve;
+    });
+
+    const fetchImpl = jest.fn((url) => {
+      const isScheduled =
+        new URL(url).searchParams.get("status") === "wcpt-scheduled";
+
+      if (isScheduled) {
+        return Promise.resolve(response([record(1, "Future Camp", "1788220800")]));
+      }
+      return archiveReady.then(() =>
+        response([
+          record(1, "Future Camp", "1788220800"),
+          record(2, "Past Camp", "1768435200"),
+        ]),
+      );
+    });
+
+    const { result } = renderUseWordCamps({ fetchImpl });
+
+    // First paint: scheduled resolved, upcoming shown, archive still coming.
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isArchiveLoading).toBe(true);
+    expect(result.current.upcoming.map((c) => c.title)).toEqual(["Future Camp"]);
+    expect(result.current.past).toEqual([]);
+
+    // Archive lands: past fills in.
+    await act(async () => {
+      releaseArchive();
+      await archiveReady;
+    });
+    await waitFor(() => expect(result.current.isArchiveLoading).toBe(false));
+    expect(result.current.past.map((c) => c.title)).toEqual(["Past Camp"]);
+  });
+
+  it("fetches each feed once per mount, not once per render", async () => {
     const fetchImpl = jest.fn(async () => response([]));
 
     const { result, rerender } = renderUseWordCamps({ fetchImpl });
@@ -143,7 +183,9 @@ describe("useWordCamps", () => {
     rerender();
     rerender();
 
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    // Two feeds — scheduled and the full archive — each fetched once, and
+    // re-rendering adds none.
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it("falls back to the global fetch and the real clock when called bare", async () => {
@@ -160,7 +202,8 @@ describe("useWordCamps", () => {
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      // Scheduled feed + full archive.
+      expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(result.current.isError).toBe(false);
       expect(result.current.upcoming).toEqual([]);
     } finally {

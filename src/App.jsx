@@ -43,8 +43,16 @@ const TAB_UPCOMING = "upcoming";
 const TAB_PAST = "past";
 
 export function App() {
-  const { camps, upcoming, past, isLoading, isError, error, refetch } =
-    useWordCamps();
+  const {
+    camps,
+    upcoming,
+    past,
+    isLoading,
+    isArchiveLoading,
+    isError,
+    error,
+    refetch,
+  } = useWordCamps();
 
   // The view lives here rather than in each panel: it is a mode, and it
   // should survive switching between Upcoming and Past.
@@ -62,7 +70,12 @@ export function App() {
       <AppHeader />
 
       <main>
-        {isLoading && <LoadingState calendar={view === VIEW_CALENDAR} />}
+        {isLoading && (
+          <LoadingState
+            calendar={view === VIEW_CALENDAR}
+            map={view === VIEW_MAP}
+          />
+        )}
 
         {isError && <ErrorState error={error} onRetry={refetch} />}
 
@@ -71,6 +84,7 @@ export function App() {
             view={view}
             onViewChange={changeView}
             totalCount={camps.length}
+            isArchiveLoading={isArchiveLoading}
             filters={filters}
           />
         )}
@@ -91,9 +105,16 @@ export function App() {
  * @param {string} props.view
  * @param {(view: string) => void} props.onViewChange
  * @param {number} props.totalCount Unfiltered camp count, for the result label.
+ * @param {boolean} props.isArchiveLoading The past archive is still streaming.
  * @param {ReturnType<typeof useCampFilters>} props.filters
  */
-function LoadedSchedule({ view, onViewChange, totalCount, filters }) {
+function LoadedSchedule({
+  view,
+  onViewChange,
+  totalCount,
+  isArchiveLoading,
+  filters,
+}) {
   const {
     query,
     setQuery,
@@ -120,6 +141,15 @@ function LoadedSchedule({ view, onViewChange, totalCount, filters }) {
         resultCount={shownCamps.length}
         totalCount={totalCount}
       />
+
+      {isArchiveLoading && (
+        // The upcoming feed is already on screen; this notes the past archive
+        // is still arriving, so the Past count settling upward reads as loading
+        // rather than a glitch.
+        <p role="status" className="mb-4 text-sm text-muted-foreground">
+          Loading the full archive…
+        </p>
+      )}
 
       {view === VIEW_CALENDAR ? (
         <>

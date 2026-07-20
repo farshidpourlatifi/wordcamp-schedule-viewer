@@ -19,6 +19,13 @@ export const WORDCAMPS_ENDPOINT =
 export const PER_PAGE = 100;
 
 /**
+ * The status of an approved, dated, upcoming WordCamp. Fetching this alone
+ * returns ~40 records in one page instead of the full ~1,500 across 15 — the
+ * fast path for the initial view.
+ */
+export const SCHEDULED_STATUS = "wcpt-scheduled";
+
+/**
  * Runaway guard. The live feed is ~15 pages; this only trips if the API
  * reports a nonsense page count, and stops that from becoming thousands of
  * requests from a user's browser.
@@ -29,13 +36,15 @@ const MAX_PAGES = 50;
  * Build the collection URL for one page.
  *
  * @param {number} page 1-based page number.
+ * @param {string} [status] Filters to one WordPress status when set.
  * @returns {string}
  */
-function buildPageUrl(page) {
+function buildPageUrl(page, status) {
   const url = new URL(WORDCAMPS_ENDPOINT);
 
   url.searchParams.set("per_page", String(PER_PAGE));
   url.searchParams.set("page", String(page));
+  if (status) url.searchParams.set("status", status);
 
   return url.toString();
 }
@@ -67,8 +76,8 @@ function readTotalPages(response) {
  * @param {AbortSignal} [signal]
  * @returns {Promise<{records: Array, totalPages: number}>}
  */
-async function fetchPage(page, fetchImpl, signal) {
-  const response = await fetchImpl(buildPageUrl(page), { signal });
+async function fetchPage(page, fetchImpl, signal, status) {
+  const response = await fetchImpl(buildPageUrl(page, status), { signal });
 
   if (!response.ok) {
     throw new Error(`WordCamp API request failed (HTTP ${response.status})`);
@@ -98,6 +107,7 @@ async function fetchPage(page, fetchImpl, signal) {
  * @param {Object} [options]
  * @param {Function} [options.fetchImpl] Injectable fetch, for tests.
  * @param {AbortSignal} [options.signal] Cancels in-flight requests.
+ * @param {string} [options.status] Restrict to one WordPress status.
  * @returns {Promise<Array<Object>>} Raw records, in page order.
  */
 export async function fetchWordCamps({
@@ -105,8 +115,9 @@ export async function fetchWordCamps({
   // throws "Illegal invocation" in the browser.
   fetchImpl = (...args) => globalThis.fetch(...args),
   signal,
+  status,
 } = {}) {
-  const firstPage = await fetchPage(1, fetchImpl, signal);
+  const firstPage = await fetchPage(1, fetchImpl, signal, status);
 
   if (firstPage.totalPages <= 1) return firstPage.records;
 
@@ -116,7 +127,7 @@ export async function fetchWordCamps({
   );
 
   const rest = await Promise.all(
-    remainingPages.map((page) => fetchPage(page, fetchImpl, signal)),
+    remainingPages.map((page) => fetchPage(page, fetchImpl, signal, status)),
   );
 
   return [firstPage.records, ...rest.map((page) => page.records)].flat();
