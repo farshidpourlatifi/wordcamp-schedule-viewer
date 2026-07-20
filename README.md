@@ -39,12 +39,12 @@ is strictly read-only.
 
 ```
 src/
-  api/         WP REST client: pagination, error handling, injectable fetch
+  api/         WP REST client: pagination, status filter, injectable fetch
   utils/       Pure functions: decode, parse, normalize, partition, group,
-               format, calendar grid math
-  hooks/       useWordCamps — owns fetch → normalize → partition
-  components/  App, MonthCalendar, ListView, MapView (lazy), WordCampCard,
-               states, header/footer, theme + view toggles
+               format, calendar grid math, continent, filter
+  hooks/       useWordCamps (scheduled + archive), useCampFilters, useDarkTheme
+  components/  App, MonthCalendar, ListView, MapView (lazy), Filters,
+               WordCampCard, states, header/footer, theme + view toggles
     ui/        Hand-written primitives (Card, Button, Skeleton, Tabs)
   lib/         cn() class merger, QueryClient factory
   test/        Shared fixtures (real API records) and render helpers
@@ -77,6 +77,18 @@ They are a filter: the list and the map each read one already-split side. A
 calendar is continuous time — with tabs, July 2026 rendered twice, camps before
 the 20th under one tab and after it under the other — so it marks today instead
 and shows both sides of it in the same grid.
+
+**Search and region filter all three views at once.** A search box (title,
+location, country, venue — token-AND, so "rome italy" matches on either field)
+and a continent select feed one pure `filterCamps`, so the three views can
+never disagree about what a query means; the tab counts and an aria-live result
+count follow along. Continent is derived from the venue country code through a
+local lookup — no geocoding.
+
+**Loading is two-tier.** The scheduled feed (`?status=wcpt-scheduled`, ~40
+records in one request) drives the first paint; the full ~1,500-record archive
+streams in behind it, so upcoming events are usable in a blink instead of
+waiting on 15 requests and 4.35 MB.
 
 Decisions in the calendar that came from looking at the live data rather than
 guessing at it:
@@ -148,7 +160,7 @@ token-styled elements.
 
 ## Testing
 
-**276 tests across 21 suites. Coverage: 100% statements, 99.5% branches, 100%
+**330 tests across 26 suites. Coverage: 100% statements, 99%+ branches, 100%
 functions, 100% lines** — against a required floor of 60%, enforced in
 `jest.config.js` so a shortfall fails the build rather than relying on someone
 to check.
@@ -182,26 +194,27 @@ project bounds that risk from both ends:
 
 - **Complexity is capped** by ESLint (`complexity: 10`, `max-depth: 3`), so no
   function grows past the point where tests can realistically cover its paths.
-- **Test strength** is measured by a **StrykerJS mutation score of 96%** over
+- **Test strength** is measured by a **StrykerJS mutation score of ~95%** over
   `src/utils` and `src/api` — the pure layers, where mutants are fast and
   honest. Stryker rewrites the code in small ways (a `>` to `>=`, a return to
   `null`) and re-runs the suite; a mutant that survives is a line the tests only
-  execute rather than guard. Run it with `npm run test:mutation`. Getting from
-  the first 87% to 96% meant strengthening real gaps — array-hole robustness,
-  boundary conditions, entity-table completeness — and it surfaced a genuinely
-  dead map entry along the way. The ~16 remaining survivors are equivalent
-  mutants (e.g. `month < first` vs `<=`, identical when the operands are
-  equal), which no test can kill honestly.
+  execute rather than guard. Run it with `npm run test:mutation`. Getting there
+  meant strengthening real gaps — array-hole robustness, boundary conditions,
+  entity-table completeness, token-AND search — and it surfaced a genuinely
+  dead map entry along the way. The remaining survivors are equivalent mutants
+  (e.g. `month < first` vs `<=`, identical when the operands are equal), which
+  no test can kill honestly.
 
 ### End-to-end
 
-Four Playwright scenarios (`npm run test:e2e`) cover what jsdom cannot see: a
+Five Playwright scenarios (`npm run test:e2e`) cover what jsdom cannot see: a
 real browser rendering the calendar `<table>` on load, switching to the list
-and between its tabs, the map rendering a real Leaflet marker (the one view
-jsdom cannot lay out at all), and the error state on a real network failure.
-The WordCamp API is mocked per test, so the suite is deterministic and never
-touches the live feed. Deliberately few — the 276 Jest tests already cover the
-fine grain far faster; E2E earns its keep only on cross-cutting browser
+and between its tabs, search narrowing the schedule, the map rendering a real
+Leaflet marker (the one view jsdom cannot lay out at all), and the error state
+on a real network failure. The WordCamp API is mocked per test, so the suite is
+deterministic and never touches the live feed. Deliberately few — the 330 Jest
+tests already cover the fine grain far faster; E2E earns its keep only on
+cross-cutting browser
 behaviour.
 
 ---

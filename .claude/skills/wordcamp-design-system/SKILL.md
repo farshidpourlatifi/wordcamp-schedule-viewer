@@ -199,6 +199,14 @@ Pill-style segmented control built on Base UI Tabs. Active pill: `card` bg,
 Base UI provides the roles/keyboard behavior; ensure `aria-selected` and a visible
 `ring` focus outline.
 
+### Filters (search + region)
+A row above the schedule: a native search `<input type="search">` with a leading
+Lucide `Search` icon, a native region `<select>` (All regions + the five
+continents), and a right-aligned `aria-live` result count ("93 of 1481 events" /
+"1481 events"). Fields use `bg-background`, `border-input`, `text-foreground`;
+labels are `sr-only`; the global focus ring applies. Native controls on purpose —
+keyboard, mobile pickers, and form semantics for free.
+
 ### ViewToggle (Calendar / List / Map)
 Pill-style segmented control matching the Tabs treatment, right-aligned on the
 schedule's top row — sharing it with the tabs in the list and map views, alone
@@ -223,6 +231,10 @@ button beside the label that returns to the current month (disabled while it is
 already on screen).
 
 Note the tabs do **not** appear above the calendar — they filter the list only.
+
+Popup: title (linked, `var(--primary)` inline since it renders outside the base
+layer), then date, location, timezone, and `~N anticipated` attendance — each
+only when present.
 
 Camp chips: `secondary` bg with `secondary-foreground`, `rounded`, `text-xs`,
 truncated. **Never `primary` as a chip fill** — in dark mode `--primary` is

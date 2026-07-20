@@ -24,16 +24,31 @@ nobody read it as one, so hard requirement #2 was effectively unmet. Since then:
   "WordPress Campus Connect" entries are multi-month programmes, not events.
   They are indexed on their start day only; see `MAX_EXPANDED_SPAN_DAYS`.
 
-**243 tests, 20 suites** - 100% statements / functions / lines, 99.5% branches.
+**Phase 7 done:** GitHub Actions CI, Stryker mutation testing, Playwright E2E.
+
+**Phase 7.5 done** (Atlas-inspired discovery + performance, see
+[`PHASE-7.5.md`](PHASE-7.5.md)): search + region filter across all three views,
+richer map popups (timezone, anticipated attendance), themed map tiles
+(CARTO light/dark) with scroll-to-zoom and a whole-world min-zoom, and two-tier
+loading (scheduled feed first, archive streams behind).
+
+**330 tests, 26 suites** - 100% statements / functions / lines, 99%+ branches.
+Mutation ~95% (utils + api). 5 Playwright E2E. Lighthouse 100/100/100/100.
 
 - **Repo exists - do not create a new one.**
   - Local: `~/Claude/Projects/wordcamp-schedule-viewer`
   - Remote: `github.com/farshidpourlatifi/wordcamp-schedule-viewer` (PUBLIC)
   - Git author: farshidpourlatifi <farshid.pourlatifi@gmail.com> (correct - no work identity leak)
-- **:warning: 20 commits are LOCAL ONLY.** `main` is 20 ahead of `origin/main`.
-  Farshid chose on 2026-07-20 not to push yet (wants to review history first).
-  Nothing is backed up until that push happens.
+- **:warning: Many commits are unpushed.** Push to back up and to let CI run.
 - Working tree clean. `npm install && npm start` works from a fresh clone.
+
+**Note on data loading:** the whole feed is fetched because every record is
+rendered (map markers, list archive, calendar timeline), AND the event date is
+a meta field the WP REST API refuses to filter or sort by (`orderby` rejects it;
+`?after`/`?before` use post date, not event date). Counts are free from the
+`X-WP-Total`/`X-WP-TotalPages` headers, but we cannot fetch just a view's slice.
+An on-demand archive (load past only when a past view opens) is possible but was
+judged not worth the calendar complexity - see the chat rationale.
 
 ### Where things stand
 

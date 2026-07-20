@@ -67,6 +67,12 @@ describe("filterCamps", () => {
     ]);
   });
 
+  it("requires every word to match, not just one", () => {
+    // "rome" matches Rome but "tokyo" matches nothing about it — so token-AND
+    // must exclude it, where token-OR would wrongly keep it.
+    expect(filterCamps(all, { query: "rome tokyo" })).toEqual([]);
+  });
+
   it("filters by region", () => {
     expect(titles(filterCamps(all, { region: "Asia" }))).toEqual([
       "WordCamp Osaka",
