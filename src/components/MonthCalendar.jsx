@@ -228,7 +228,9 @@ function DayCell({ day, entries, isCurrentMonth, isToday }) {
           {/* The full date is announced only where there is something to
               announce; adding it to all 42 cells would bury the content. */}
           <span className="sr-only">{formatCampDate(day)}</span>
-          <ul className="mt-0.5 space-y-0.5">
+          {/* space-y-1 keeps 4px between adjacent targets, which the same
+              WCAG criterion counts toward safe clickable space. */}
+          <ul className="mt-1 space-y-1">
             {entries.map(({ camp, isStart }) => (
               <li key={camp.id}>
                 <CampChip camp={camp} isStart={isStart} />
@@ -254,7 +256,13 @@ function DayCell({ day, entries, isCurrentMonth, isToday }) {
  * @param {boolean} props.isStart
  */
 function CampChip({ camp, isStart }) {
-  const base = "block truncate rounded px-1.5 py-0.5 text-xs";
+  // min-h-6 is 24px: WCAG 2.5.8 (Target Size, Minimum) at AA. Text-xs alone
+  // gives a 20px chip, which Lighthouse flagged on the deployed build — the
+  // links are small by nature in a day cell, so the height is set explicitly
+  // rather than left to the line box.
+  // 16px line box + 4px padding either side = the 24px minimum, with
+  // `block` kept so `truncate` still ellipsises the long titles.
+  const base = "block truncate rounded px-1.5 py-1 text-xs leading-4";
 
   if (!isStart) {
     return (
