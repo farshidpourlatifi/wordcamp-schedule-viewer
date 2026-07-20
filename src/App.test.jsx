@@ -39,12 +39,14 @@ const RECORDS = [
     startSeconds: FUTURE_SECONDS,
     location: "Rome, Italy",
     url: "https://rome.wordcamp.org/2099/",
+    countryCode: "IT",
   }),
   apiRecord({
     id: 2,
     title: "WordCamp History",
     startSeconds: PAST_SECONDS,
     location: "Osaka, Japan",
+    countryCode: "JP",
   }),
 ];
 
@@ -349,6 +351,68 @@ describe("App", () => {
       expect(await screen.findByTestId("map-view")).toHaveTextContent(
         "1 on the map",
       );
+    });
+  });
+
+  describe("filters", () => {
+    afterEach(() => localStorage.clear());
+
+    it("shows the total count once loaded", async () => {
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+
+      expect(await screen.findByText("2 events")).toBeInTheDocument();
+    });
+
+    it("narrows the result count as you search", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.type(await screen.findByRole("searchbox"), "rome");
+
+      expect(await screen.findByText("1 of 2 events")).toBeInTheDocument();
+    });
+
+    it("filters the visible list by search", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+      await user.type(await screen.findByRole("searchbox"), "rome");
+
+      expect(
+        screen.getByRole("link", { name: "WordCamp Future – Rome" }),
+      ).toBeInTheDocument();
+      // The tab count follows the filter down to one match.
+      expect(screen.getByRole("tab", { name: "Upcoming (1)" })).toBeInTheDocument();
+    });
+
+    it("filters by region using the derived continent", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderWithQuery(<App />);
+      await user.selectOptions(
+        await screen.findByRole("combobox", { name: /region/i }),
+        "Asia",
+      );
+
+      // Only Osaka (JP → Asia) matches; Rome (IT → Europe) is excluded.
+      expect(await screen.findByText("1 of 2 events")).toBeInTheDocument();
+    });
+
+    it("says so when a filter matches nothing", async () => {
+      const user = userEvent.setup();
+      mockFetch(async () => apiResponse(RECORDS));
+
+      renderInListView();
+      await user.type(await screen.findByRole("searchbox"), "nairobi");
+
+      expect(
+        await screen.findByText("No WordCamps match your search."),
+      ).toBeInTheDocument();
     });
   });
 });

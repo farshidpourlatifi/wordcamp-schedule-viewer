@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { AppFooter } from "@/components/AppFooter";
+import { Filters } from "@/components/Filters";
 import { ListView } from "@/components/ListView";
 import { MonthCalendar } from "@/components/MonthCalendar";
 import { LoadingState, ErrorState } from "@/components/states";
@@ -13,6 +14,7 @@ import {
   persistView,
 } from "@/components/ViewToggle";
 import { Tabs, TabsList, Tab, TabPanel } from "@/components/ui/tabs";
+import { useCampFilters } from "@/hooks/useCampFilters";
 import { useWordCamps } from "@/hooks/useWordCamps";
 
 // The map pulls in Leaflet and its cluster plugin — ~150 KiB that the calendar
@@ -48,6 +50,8 @@ export function App() {
   // should survive switching between Upcoming and Past.
   const [view, setView] = useState(readStoredView);
 
+  const filters = useCampFilters(camps, upcoming, past);
+
   const changeView = (next) => {
     persistView(next);
     setView(next);
@@ -62,50 +66,103 @@ export function App() {
 
         {isError && <ErrorState error={error} onRetry={refetch} />}
 
-        {!isLoading && !isError && view === VIEW_CALENDAR && (
-          <>
-            <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
-              <ViewToggle view={view} onViewChange={changeView} />
-            </div>
-
-            <MonthCalendar camps={camps} emptyMessage="No WordCamps found." />
-          </>
-        )}
-
-        {!isLoading && !isError && view !== VIEW_CALENDAR && (
-          <Tabs defaultValue={TAB_UPCOMING}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <TabsList>
-                <Tab value={TAB_UPCOMING}>Upcoming ({upcoming.length})</Tab>
-                <Tab value={TAB_PAST}>Past ({past.length})</Tab>
-              </TabsList>
-
-              <ViewToggle view={view} onViewChange={changeView} />
-            </div>
-
-            <TabPanel value={TAB_UPCOMING}>
-              <TabbedView
-                view={view}
-                camps={upcoming}
-                emptyMessage="No upcoming WordCamps found."
-                revealLabel="Show later"
-              />
-            </TabPanel>
-
-            <TabPanel value={TAB_PAST}>
-              <TabbedView
-                view={view}
-                camps={past}
-                emptyMessage="No past WordCamps found."
-                revealLabel="Show earlier"
-              />
-            </TabPanel>
-          </Tabs>
+        {!isLoading && !isError && (
+          <LoadedSchedule
+            view={view}
+            onViewChange={changeView}
+            totalCount={camps.length}
+            filters={filters}
+          />
         )}
       </main>
 
       <AppFooter />
     </div>
+  );
+}
+
+/**
+ * The schedule once data has loaded: the filter row, then the chosen view.
+ *
+ * Split out of App so the shell stays a plain loading/error/ready switch and
+ * this piece owns the view branching under the complexity cap.
+ *
+ * @param {Object} props
+ * @param {string} props.view
+ * @param {(view: string) => void} props.onViewChange
+ * @param {number} props.totalCount Unfiltered camp count, for the result label.
+ * @param {ReturnType<typeof useCampFilters>} props.filters
+ */
+function LoadedSchedule({ view, onViewChange, totalCount, filters }) {
+  const {
+    query,
+    setQuery,
+    region,
+    setRegion,
+    isFiltering,
+    shownCamps,
+    shownUpcoming,
+    shownPast,
+  } = filters;
+
+  // When a filter is active but a view is empty, say so — otherwise the
+  // "no WordCamps" copy reads as if the data failed to load.
+  const emptyFor = (base) =>
+    isFiltering ? "No WordCamps match your search." : base;
+
+  return (
+    <>
+      <Filters
+        query={query}
+        onQueryChange={setQuery}
+        region={region}
+        onRegionChange={setRegion}
+        resultCount={shownCamps.length}
+        totalCount={totalCount}
+      />
+
+      {view === VIEW_CALENDAR ? (
+        <>
+          <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
+            <ViewToggle view={view} onViewChange={onViewChange} />
+          </div>
+
+          <MonthCalendar
+            camps={shownCamps}
+            emptyMessage={emptyFor("No WordCamps found.")}
+          />
+        </>
+      ) : (
+        <Tabs defaultValue={TAB_UPCOMING}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList>
+              <Tab value={TAB_UPCOMING}>Upcoming ({shownUpcoming.length})</Tab>
+              <Tab value={TAB_PAST}>Past ({shownPast.length})</Tab>
+            </TabsList>
+
+            <ViewToggle view={view} onViewChange={onViewChange} />
+          </div>
+
+          <TabPanel value={TAB_UPCOMING}>
+            <TabbedView
+              view={view}
+              camps={shownUpcoming}
+              emptyMessage={emptyFor("No upcoming WordCamps found.")}
+              revealLabel="Show later"
+            />
+          </TabPanel>
+
+          <TabPanel value={TAB_PAST}>
+            <TabbedView
+              view={view}
+              camps={shownPast}
+              emptyMessage={emptyFor("No past WordCamps found.")}
+              revealLabel="Show earlier"
+            />
+          </TabPanel>
+        </Tabs>
+      )}
+    </>
   );
 }
 

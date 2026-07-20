@@ -48,6 +48,22 @@ test("switches to the list and between its tabs", async ({ page }) => {
   ).toBeHidden();
 });
 
+test("search narrows the schedule", async ({ page }) => {
+  await mockWordCamps(page);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "List" }).click();
+  await page.getByRole("searchbox").fill("osaka");
+
+  // The past camp is in Osaka; the upcoming Rome camp drops out, and the tab
+  // count follows the filter down.
+  await expect(page.getByRole("tab", { name: "Upcoming (0)" })).toBeVisible();
+  await expect(page.getByText("1 of 2 events")).toBeVisible();
+
+  await page.getByRole("tab", { name: /Past/ }).click();
+  await expect(page.getByText("WordCamp History Osaka")).toBeVisible();
+});
+
 test("renders the map with a real Leaflet marker", async ({ page }) => {
   await mockWordCamps(page);
   await page.goto("/");

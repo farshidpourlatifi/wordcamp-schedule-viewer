@@ -50,6 +50,7 @@ export function apiRecord({
   startSeconds,
   location = "",
   url = "",
+  countryCode = "",
 }) {
   return {
     id,
@@ -57,5 +58,6 @@ export function apiRecord({
     "Start Date (YYYY-mm-dd)": startSeconds,
     Location: location,
     URL: url,
+    _venue_country_code: countryCode,
   };
 }
