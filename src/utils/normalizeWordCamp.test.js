@@ -23,6 +23,11 @@ describe("normalizeWordCamp", () => {
       venue:
         "Tegal Regency Public Library (Perpustakaan Soekarno-Hatta Kabupaten Tegal)",
       coordinates: null,
+      timezone: "Asia/Jakarta",
+      attendees: null,
+      countryCode: "",
+      country: "",
+      continent: "Unknown",
     });
   });
 
@@ -148,6 +153,11 @@ describe("normalizeWordCamp", () => {
       location: "",
       venue: "",
       coordinates: null,
+      timezone: "",
+      attendees: null,
+      countryCode: "",
+      country: "",
+      continent: "Unknown",
     });
   });
 
@@ -200,6 +210,46 @@ describe("normalizeWordCamp", () => {
         lat: 90,
         lng: -180,
       });
+    });
+  });
+
+  describe("discovery fields", () => {
+    it("reads timezone, country, and derives the continent", () => {
+      const camp = normalizeWordCamp({
+        id: 1,
+        "Event Timezone": "Asia/Kathmandu",
+        _venue_country_code: "np",
+        _venue_country_name: "Nepal",
+      });
+
+      expect(camp.timezone).toBe("Asia/Kathmandu");
+      expect(camp.countryCode).toBe("NP"); // upper-cased for a stable filter key
+      expect(camp.country).toBe("Nepal");
+      expect(camp.continent).toBe("Asia");
+    });
+
+    it("reads anticipated attendance as a number", () => {
+      expect(
+        normalizeWordCamp({ id: 1, "Number of Anticipated Attendees": "300" })
+          .attendees,
+      ).toBe(300);
+    });
+
+    it("treats missing or non-positive attendance as null, not zero", () => {
+      // Empty on many records; "0 people" would be a meaningless label.
+      expect(normalizeWordCamp({ id: 1 }).attendees).toBeNull();
+      expect(
+        normalizeWordCamp({ id: 1, "Number of Anticipated Attendees": "" })
+          .attendees,
+      ).toBeNull();
+      expect(
+        normalizeWordCamp({ id: 1, "Number of Anticipated Attendees": "0" })
+          .attendees,
+      ).toBeNull();
+    });
+
+    it("leaves continent Unknown when the country code is absent", () => {
+      expect(normalizeWordCamp({ id: 1 }).continent).toBe("Unknown");
     });
   });
 

@@ -95,6 +95,11 @@ describe("useWordCamps", () => {
       location: "",
       venue: "",
       coordinates: null,
+      timezone: "",
+      attendees: null,
+      countryCode: "",
+      country: "",
+      continent: "Unknown",
     });
   });
 

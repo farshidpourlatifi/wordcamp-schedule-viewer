@@ -1,3 +1,4 @@
+import { continentFromCountryCode } from "@/utils/continent";
 import { toPlainText } from "@/utils/decodeEntities";
 import { parseWordCampDate } from "@/utils/parseDate";
 
@@ -23,6 +24,11 @@ import { parseWordCampDate } from "@/utils/parseDate";
  * @property {string} venue
  * @property {{lat: number, lng: number}|null} coordinates  Venue location for
  *   the map; null when the record has no usable coordinates.
+ * @property {string} timezone   IANA zone, e.g. "Asia/Kathmandu"; "" when absent.
+ * @property {number|null} attendees  Anticipated (not actual) attendance.
+ * @property {string} countryCode  ISO alpha-2, upper-case; "" when absent.
+ * @property {string} country    Country name; "" when absent.
+ * @property {string} continent  Derived from countryCode; "Unknown" when unknown.
  */
 
 /**
@@ -36,6 +42,24 @@ function readMeta(record, key) {
   const value = record[key];
 
   return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Read a meta field as a positive integer, or null.
+ *
+ * Attendance and capacity come as numeric strings, empty on many records. An
+ * empty or non-positive value is "no data", not zero — a WordCamp with zero
+ * anticipated attendees is meaningless, so it normalizes to null and the UI
+ * omits it rather than showing "0 people".
+ *
+ * @param {Object} record
+ * @param {string} key
+ * @returns {number|null}
+ */
+function readCount(record, key) {
+  const value = Number(readMeta(record, key));
+
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 /**
@@ -129,6 +153,11 @@ export function normalizeWordCamp(record) {
     location: readMeta(record, "Location"),
     venue: readMeta(record, "Venue Name"),
     coordinates: readCoordinates(record),
+    timezone: readMeta(record, "Event Timezone"),
+    attendees: readCount(record, "Number of Anticipated Attendees"),
+    countryCode: readMeta(record, "_venue_country_code").toUpperCase(),
+    country: readMeta(record, "_venue_country_name"),
+    continent: continentFromCountryCode(record["_venue_country_code"]),
   };
 }
 
