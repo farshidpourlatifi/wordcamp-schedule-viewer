@@ -367,12 +367,38 @@ describe("monthBounds", () => {
   it("returns nulls for a non-array", () => {
     expect(monthBounds(null)).toEqual({ first: null, last: null });
   });
+
+  it("tolerates holes in the list", () => {
+    // A null element must be skipped, not dereferenced through
+    // `camp?.startDate`.
+    expect(monthBounds([null, camp(1, utc(2026, 6, 10))])).toEqual({
+      first: utc(2026, 6, 1),
+      last: utc(2026, 6, 1),
+    });
+  });
 });
 
 describe("WEEKDAYS", () => {
-  it("covers a full week starting on Monday", () => {
-    expect(WEEKDAYS).toHaveLength(DAYS_PER_WEEK);
-    expect(WEEKDAYS[0].long).toBe("Monday");
-    expect(WEEKDAYS[DAYS_PER_WEEK - 1].long).toBe("Sunday");
+  it("labels every weekday, Monday through Sunday", () => {
+    // The header row's correctness rides entirely on these labels, so both
+    // forms are pinned in full rather than just the two endpoints.
+    expect(WEEKDAYS.map((day) => day.short)).toEqual([
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun",
+    ]);
+    expect(WEEKDAYS.map((day) => day.long)).toEqual([
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ]);
   });
 });

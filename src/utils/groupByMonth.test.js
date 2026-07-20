@@ -90,4 +90,13 @@ describe("groupByMonth", () => {
     expect(groupByMonth(null)).toEqual([]);
     expect(groupByMonth(undefined)).toEqual([]);
   });
+
+  it("tolerates holes in the list", () => {
+    // A null element has no date, so it belongs in the TBD bucket rather than
+    // throwing when `camp?.startDate` is read.
+    const groups = groupByMonth([null, camp("a", "2026-03-14T00:00:00Z")]);
+
+    expect(groups.find((g) => g.key === "2026-03")).toBeDefined();
+    expect(groups.find((g) => g.key === "tbd")).toBeDefined();
+  });
 });

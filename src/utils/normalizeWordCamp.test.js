@@ -155,6 +155,25 @@ describe("normalizeWordCamp", () => {
     expect(normalizeWordCamp({})).toBeNull();
     expect(normalizeWordCamp("nonsense")).toBeNull();
   });
+
+  it("keeps a record whose id is 0", () => {
+    // 0 is a valid id and falsy; the guard tests `=== undefined`, so a
+    // truthiness check here would wrongly discard it.
+    expect(normalizeWordCamp({ id: 0 })).not.toBeNull();
+  });
+
+  it("trims whitespace around meta values", () => {
+    // WordPress meta arrives padded often enough to matter; without the trim
+    // the location would render with its surrounding spaces intact.
+    const camp = normalizeWordCamp({
+      id: 1,
+      Location: "  Rome, Italy  ",
+      "Venue Name": "  The Venue  ",
+    });
+
+    expect(camp.location).toBe("Rome, Italy");
+    expect(camp.venue).toBe("The Venue");
+  });
 });
 
 describe("normalizeWordCamps", () => {

@@ -11,6 +11,14 @@ describe("parseWordCampDate", () => {
     expect(parsed.toISOString()).toBe("2026-08-09T00:00:00.000Z");
   });
 
+  it("trims surrounding whitespace before parsing", () => {
+    // A padded seconds string must still parse. Without the trim it fails the
+    // integer test and falls through to Date.parse, which reads it as NaN.
+    expect(parseWordCampDate("  1786233600  ").toISOString()).toBe(
+      "2026-08-09T00:00:00.000Z",
+    );
+  });
+
   it("parses Unix seconds given as a number", () => {
     expect(parseWordCampDate(1786233600).toISOString()).toBe(
       "2026-08-09T00:00:00.000Z",

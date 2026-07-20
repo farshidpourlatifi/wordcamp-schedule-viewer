@@ -84,6 +84,28 @@ describe("fetchWordCamps", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("clamps a non-positive page count to one page", async () => {
+    // A finite-but-nonsensical "0" must floor at 1, not drive a zero- or
+    // negative-length page loop. Distinct from the NaN path above.
+    const fetchImpl = jest.fn(async () => response([record(1)], { totalPages: 0 }));
+
+    await fetchWordCamps({ fetchImpl });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("survives a response that carries no headers object at all", async () => {
+    // The optional chain on `response.headers?.get` is what keeps a
+    // header-less response from throwing before it can default to one page.
+    const fetchImpl = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => [record(1)],
+    }));
+
+    await expect(fetchWordCamps({ fetchImpl })).resolves.toEqual([record(1)]);
+  });
+
   it("throws with the status when the response is not ok", async () => {
     const fetchImpl = jest.fn(async () =>
       response(null, { ok: false, status: 503 }),

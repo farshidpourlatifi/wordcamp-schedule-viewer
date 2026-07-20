@@ -12,6 +12,42 @@ describe("decodeEntities", () => {
     expect(decodeEntities("it&apos;s")).toBe("it's");
   });
 
+  it("decodes every named entity in the table", () => {
+    // One assertion per row of NAMED_ENTITIES, so a wrong or dropped mapping
+    // fails here rather than passing unnoticed on the untested rows.
+    const cases = {
+      "&amp;": "&",
+      "&lt;": "<",
+      "&gt;": ">",
+      "&quot;": '"',
+      "&apos;": "'",
+      "&#039;": "'",
+      "&nbsp;": " ",
+      "&ndash;": "–",
+      "&mdash;": "—",
+      "&hellip;": "…",
+      "&lsquo;": "‘",
+      "&rsquo;": "’",
+      "&ldquo;": "“",
+      "&rdquo;": "”",
+      "&laquo;": "«",
+      "&raquo;": "»",
+      "&eacute;": "é",
+      "&times;": "×",
+      "&middot;": "·",
+      "&deg;": "°",
+    };
+
+    for (const [entity, char] of Object.entries(cases)) {
+      expect(decodeEntities(`x${entity}y`)).toBe(`x${char}y`);
+    }
+  });
+
+  it("accepts an uppercase X in a hex entity", () => {
+    // Case-insensitive by design: the API has emitted both &#x…; and &#X…;.
+    expect(decodeEntities("&#X2014;")).toBe("—");
+  });
+
   it("decodes decimal and hexadecimal numeric entities", () => {
     // &#8211; (en dash) is the entity the WordCamp API emits most often.
     expect(decodeEntities("WordCamp &#8211; Europe")).toBe("WordCamp – Europe");

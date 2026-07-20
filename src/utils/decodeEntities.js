@@ -24,7 +24,6 @@ const NAMED_ENTITIES = {
   gt: ">",
   quot: '"',
   apos: "'",
-  "#039": "'",
   nbsp: " ", // normal space, not U+00A0 — a hard space breaks text wrapping.
   ndash: "–",
   mdash: "—",

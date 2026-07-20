@@ -10,6 +10,10 @@ coverage/
 playwright-report/
 test-results/
 
+# Mutation testing (Stryker) — generated report + working dir
+reports/
+.stryker-tmp/
+
 # Agent mirror (generated locally from CLAUDE.md / .claude by tooling — not shipped)
 AGENTS.md
 .agents/

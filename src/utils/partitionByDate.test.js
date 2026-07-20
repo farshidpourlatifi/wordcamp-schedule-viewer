@@ -140,4 +140,17 @@ describe("partitionByDate", () => {
     expect(upcoming.map((c) => c.id)).toEqual(["far-off"]);
     expect(past.map((c) => c.id)).toEqual(["long-ago"]);
   });
+
+  it("tolerates holes in the list without throwing", () => {
+    // A null element must be skipped, not dereferenced — the optional chain on
+    // `camp?.startDate` is what stands between a sparse array and a TypeError.
+    const { past } = partitionByDate(
+      [null, camp("real", "2026-01-15T00:00:00Z")],
+      NOW,
+    );
+
+    // Optional chain in the assertion too: the null is a dateless entry and
+    // rides along in `past`, so a plain `.id` here would throw on it.
+    expect(past.some((c) => c?.id === "real")).toBe(true);
+  });
 });

@@ -25,6 +25,8 @@ npm start            # dev server on http://localhost:3000
 | `npm run build`         | Production bundle → `dist/`                     |
 | `npm test`              | Jest unit + integration suite                   |
 | `npm run test:coverage` | Suite with coverage, enforcing the 60% floor    |
+| `npm run test:mutation` | StrykerJS mutation testing (utils + api)        |
+| `npm run test:e2e`      | Playwright end-to-end (3 scenarios)             |
 | `npm run lint`          | ESLint (react, react-hooks, jsx-a11y)           |
 | `npm run format`        | Prettier                                        |
 
@@ -135,7 +137,7 @@ token-styled elements.
 
 ## Testing
 
-**245 tests across 20 suites. Coverage: 100% statements, 99.5% branches, 100%
+**255 tests across 20 suites. Coverage: 100% statements, 99.5% branches, 100%
 functions, 100% lines** — against a required floor of 60%, enforced in
 `jest.config.js` so a shortfall fails the build rather than relying on someone
 to check.
@@ -159,8 +161,8 @@ The approach, layer by layer:
   error, and retry recovery.
 
 Assertions are exact-value wherever possible (`toBe("Sat, 14 Mar 2026")`, not
-`toBeTruthy()`) — partly for clarity, partly because the planned mutation
-testing rewards it.
+`toBeTruthy()`) — partly for clarity, partly because the mutation testing below
+rewards it.
 
 ### Test quality
 
@@ -169,10 +171,26 @@ project bounds that risk from both ends:
 
 - **Complexity is capped** by ESLint (`complexity: 10`, `max-depth: 3`), so no
   function grows past the point where tests can realistically cover its paths.
-- **Test strength** is the other half. There is no maintained CRAP-metric
-  reporter for Jest, so the planned check is a **StrykerJS mutation score** over
+- **Test strength** is measured by a **StrykerJS mutation score of 96%** over
   `src/utils` and `src/api` — the pure layers, where mutants are fast and
-  honest. _Planned, not yet run;_ this README will state the score when it is.
+  honest. Stryker rewrites the code in small ways (a `>` to `>=`, a return to
+  `null`) and re-runs the suite; a mutant that survives is a line the tests only
+  execute rather than guard. Run it with `npm run test:mutation`. Getting from
+  the first 87% to 96% meant strengthening real gaps — array-hole robustness,
+  boundary conditions, entity-table completeness — and it surfaced a genuinely
+  dead map entry along the way. The ~16 remaining survivors are equivalent
+  mutants (e.g. `month < first` vs `<=`, identical when the operands are
+  equal), which no test can kill honestly.
+
+### End-to-end
+
+Three Playwright scenarios (`npm run test:e2e`) cover what jsdom cannot see: a
+real browser rendering the calendar `<table>` on load, switching to the list
+and between its tabs, and the error state on a real network failure. The
+WordCamp API is mocked per test, so the suite is deterministic and never
+touches the live feed. Deliberately just three — the 255 Jest tests already
+cover the fine grain far faster; E2E earns its keep only on cross-cutting
+browser behaviour.
 
 ---
 
@@ -301,17 +319,14 @@ all ~1,480 records takes ~26 ms.
   dependency and to keep revealed content in the DOM for find-in-page.
 - **Whole-feed download.** Every load fetches all 15 pages; there is no
   server-side filtering to ask for "just upcoming".
-- **Mutation testing is planned, not run** (see [Test quality](#test-quality)).
 
 ### What I would do next
 
-1. Run the StrykerJS mutation pass and publish the score.
-2. Playwright end-to-end tests — two bugs (both tab panels visible at once; the
-   active tab never highlighting) passed their jsdom tests while being visibly
-   broken in a browser. That class of bug needs a real browser to catch.
-3. Cache the response in `sessionStorage` so a reload skips the 4.35 MB fetch.
-4. The optional map view. Note that `_host_coordinates` is empty on most
+1. Cache the response in `sessionStorage` so a reload skips the 4.35 MB fetch.
+2. The optional map view. Note that `_host_coordinates` is empty on most
    records, so it would need geocoding from the `Location` string.
+3. Add the E2E suite to CI as a separate job (kept out of the blocking
+   lint/test/build path for now, since it needs a browser download).
 
 ---
 
